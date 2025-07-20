@@ -1,6 +1,6 @@
 // src/App.jsx
 import React from 'react'
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './hooks/useAuth'
 
 import RequireAuth from './components/RequireAuth'
@@ -12,24 +12,15 @@ import Log from './pages/Log'
 import History from './pages/History'
 import Profile from './pages/Profile'
 
-/**
- * Redirects to /dashboard if logged in, otherwise to /signin.
- */
-function HomeRedirect() {
-  const user = useAuth()
-  return <Navigate to={user ? '/dashboard' : '/signin'} replace />
-}
-
 export default function App() {
-  const location = useLocation()
   const user = useAuth()
 
   return (
     <div className="pb-16">
       <Routes>
-        {/* root and unknown paths */}
-        <Route path="/" element={<HomeRedirect />} />
-        <Route path="*" element={<HomeRedirect />} />
+        {/* Always send root or unknown paths to SignIn */}
+        <Route path="/" element={<Navigate to="/signin" replace />} />
+        <Route path="*" element={<Navigate to="/signin" replace />} />
 
         {/* public auth page */}
         <Route path="/signin" element={<SignIn />} />
