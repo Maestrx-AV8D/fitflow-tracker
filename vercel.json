@@ -1,8 +1,16 @@
+// vercel.json
 {
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "/signin",
+      "statusCode": 302
+    }
+  ],
   "rewrites": [
     {
       "source": "/(.*)",
-      "destination": "/index.html"
+      "destination": "/"
     }
   ]
 }
