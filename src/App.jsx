@@ -27,8 +27,9 @@ export default function App() {
   return (
     <div className="pb-16">
       <Routes>
-        {/* root goes through HomeRedirect */}
+        {/* root and unknown paths */}
         <Route path="/" element={<HomeRedirect />} />
+        <Route path="*" element={<HomeRedirect />} />
 
         {/* public auth page */}
         <Route path="/signin" element={<SignIn />} />
@@ -66,9 +67,6 @@ export default function App() {
             </RequireAuth>
           }
         />
-
-        {/* catch-all also goes through HomeRedirect */}
-        <Route path="*" element={<HomeRedirect />} />
       </Routes>
 
       {/* show bottom nav only when authenticated */}
