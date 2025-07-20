@@ -1,25 +1,10 @@
 // src/pages/SignIn.jsx
-import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import React, { useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 
 export default function SignIn() {
   const [email, setEmail] = useState('')
   const [message, setMessage] = useState('')
-  const navigate = useNavigate()
-
-  // 1) On mount, check URL for magic‐link tokens and auto‐sign in
-  useEffect(() => {
-    supabase.auth.getSessionFromUrl()
-      .then(({ data: { session }, error }) => {
-        if (error) {
-          console.error('Error retrieving session from URL:', error.message)
-        } else if (session) {
-          // Got a session! Send them to the dashboard
-          navigate('/dashboard', { replace: true })
-        }
-      })
-  }, [navigate])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
