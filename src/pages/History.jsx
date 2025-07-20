@@ -1,5 +1,6 @@
 // src/pages/History.jsx
 import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 
 export default function History() {
@@ -102,6 +103,8 @@ export default function History() {
 
 // reusable card component
 function EntryCard({ entry, onDelete }) {
+  const navigate = useNavigate()
+
   // choose a badge color based on type
   const badgeColor =
     entry.type === 'Gym'
@@ -137,7 +140,8 @@ function EntryCard({ entry, onDelete }) {
         )}
         {entry.segments?.length > 0 && (
           <p className="mb-3 text-gray-700">
-            Details: {entry.segments[0].detail ||
+            Details:{' '}
+            {entry.segments[0].detail ||
               entry.segments[0].distance ||
               entry.segments[0].duration ||
               entry.segments[0].laps ||
@@ -148,12 +152,21 @@ function EntryCard({ entry, onDelete }) {
           <p className="mb-3 text-gray-600 italic">“{entry.notes}”</p>
         )}
       </div>
-      <button
-        onClick={() => onDelete(entry.id)}
-        className="mt-4 self-end text-red-600 hover:underline"
-      >
-        Delete
-      </button>
+
+      <div className="flex justify-end space-x-4 mt-4">
+        <button
+          onClick={() => navigate('/log', { state: { entry } })}
+          className="text-blue-600 hover:underline"
+        >
+          Edit
+        </button>
+        <button
+          onClick={() => onDelete(entry.id)}
+          className="text-red-600 hover:underline"
+        >
+          Delete
+        </button>
+      </div>
     </div>
   )
 }
