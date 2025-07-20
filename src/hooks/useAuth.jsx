@@ -1,39 +1,50 @@
-import { createContext, useContext, useEffect, useState } from 'react'
-import { supabase } from '../lib/supabase.js'
+import React, { createContext, useContext, useState, useEffect } from 'react'
+import { supabase } from '../lib/supabaseClient'
 
-const AuthContext = createContext({ user: null })
+const AuthContext = createContext()
 
+/**
+ * Provides the current Supabase user and signOut function throughout the tree.
+ */
 export function AuthProvider({ children }) {
-  const auth = useProvideAuth()
-  return <AuthContext.Provider value={auth}>{children}</AuthContext.Provider>
-}
-
-export function useAuth() {
-  return useContext(AuthContext)
-}
-
-function useProvideAuth() {
   const [user, setUser] = useState(null)
 
-  const signUp = (email, password) =>
-    supabase.auth.signUp({ email, password })
-
-  const signIn = (email, password) =>
-    supabase.auth.signInWithPassword({ email, password })
-
-  const signOut = () => supabase.auth.signOut()
-
+  // fetch initial session & listen for changes
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
     })
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_, session) => {
+
+    const { subscription } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
     })
-    return () => subscription.unsubscribe()
+
+    return () => {
+      subscription?.unsubscribe()
+    }
   }, [])
 
-  return { user, signUp, signIn, signOut }
+  // log the user out
+  const signOut = async () => {
+    await supabase.auth.signOut()
+    setUser(null)
+  }
+
+  return (
+    <AuthContext.Provider value={{ user, signOut }}>
+      {children}
+    </AuthContext.Provider>
+  )
+}
+
+/**
+ * Hook to access the current user and auth actions.
+ * Returns: { user, signOut }
+ */
+export function useAuth() {
+  const context = useContext(AuthContext)
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider')
+  }
+  return context
 }

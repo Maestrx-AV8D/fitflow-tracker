@@ -1,639 +1,395 @@
 // src/pages/Log.jsx
-
-import React, { useState } from 'react'
-import { useEntries } from '../hooks/useEntries.jsx'
-
-// Activity options
-const ACTIVITY_TYPES = [
-  'Run',
-  'Cycling',
-  'Swimming',
-  'Gym',
-  'Strength Training',
-  'Yoga',
-  'Hike',
-  'Walk',
-  'Rowing'
-]
-
-// Select‐field options
-const SWIM_STROKES  = ['Freestyle','Backstroke','Breaststroke','Butterfly','Other']
-const POOL_TYPES    = ['Pool','Open Water']
-const YOGA_STYLES   = ['Hatha','Vinyasa','Ashtanga','Yin','Bikram','Other']
-const DIFFICULTIES  = ['Beginner','Intermediate','Advanced']
+import React, { useState, useEffect } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { supabase } from '../lib/supabaseClient'
 
 export default function Log() {
-  const { entries, loading, addEntry } = useEntries()
+  const navigate = useNavigate()
+  const { state } = useLocation()
+  const entryToEdit = state?.entry
 
-  // master form state
-  const [form, setForm] = useState({
-    date:       new Date().toISOString().slice(0,10),
-    activity:   '',
-    duration:   '',
-    distance:   '',
-    notes:      '',
-    pace:       '',
-    route:      '',
-    elevation:  '',
-    avgSpeed:   '',
-    stroke:     '',
-    poolType:   '',
-    style:      '',
-    difficulty: '',
-    steps:      '',
-    strokeRate: '',
-    trail:      ''
-  })
+  // Helpers for date formatting
+  const formatDisplay = (iso) =>
+    new Date(iso).toLocaleDateString('en-GB')
+  const formatISO = (display) => {
+    const [d, m, y] = display.split('/')
+    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`
+  }
 
-  // gym/strength entries
-  const [gymExercises, setGymExercises] = useState([
-    { name:'', sets:'', reps:'', weight:'', notes:'' }
+  // --- form state ---
+  const [displayDate, setDisplayDate] = useState(
+    formatDisplay(new Date().toISOString().slice(0, 10))
+  )
+  const [activityType, setActivityType] = useState('Run')
+
+  // Gym-specific: start blank
+  const [exercises, setExercises] = useState([
+    { name: '', sets: '', reps: '', weight: '' },
   ])
 
-  // generic field handler
-  const handleChange = e => {
-    const { name, value } = e.target
-    setForm(f => ({ ...f, [name]: value }))
+  // names for dropdown
+  const [exerciseNames, setExerciseNames] = useState([])
+
+  // Run/Cycle-specific
+  const [distance, setDistance] = useState('')
+  const [duration, setDuration] = useState('')
+
+  // Swim-specific
+  const [laps, setLaps] = useState('')
+  const [time, setTime] = useState('')
+
+  const [notes, setNotes] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  // Load past exercise names once
+  useEffect(() => {
+    async function loadNames() {
+      const { data: { user } = {}, error: userErr } = await supabase.auth.getUser()
+      if (userErr || !user) return
+      const { data: past, error } = await supabase
+        .from('entries')
+        .select('exercises')
+        .eq('user_id', user.id)
+        .eq('type', 'Gym')
+      if (error) {
+        console.error('Error loading exercise names:', error)
+        return
+      }
+      const names = new Set()
+      ;(past || []).forEach((entry) =>
+        entry.exercises.forEach((e) => {
+          if (e.name) names.add(e.name)
+        })
+      )
+      setExerciseNames([...names])
+    }
+    loadNames()
+  }, [])
+
+  // If editing, preload form values
+  useEffect(() => {
+    if (!entryToEdit) return
+
+    setDisplayDate(formatDisplay(entryToEdit.date))
+    setActivityType(entryToEdit.type)
+    setNotes(entryToEdit.notes || '')
+
+    if (entryToEdit.type === 'Gym') {
+      setExercises(
+        entryToEdit.exercises.map((e) => ({
+          name: e.name,
+          sets: e.sets,
+          reps: e.reps,
+          weight: e.weight ?? '',
+        }))
+      )
+      setDistance('')
+      setDuration('')
+      setLaps('')
+      setTime('')
+    } else {
+      const seg = entryToEdit.segments?.[0] || {}
+      if (entryToEdit.type === 'Swim') {
+        setLaps(seg.laps || '')
+        setTime(seg.time || '')
+      } else {
+        setDistance(seg.distance || '')
+        setDuration(seg.duration || '')
+      }
+      setExercises([{ name: '', sets: '', reps: '', weight: '' }])
+    }
+  }, [entryToEdit])
+
+  // Update one field in the exercises array
+  const handleExerciseChange = (idx, field, value) => {
+    const arr = exercises.slice()
+    arr[idx] = { ...arr[idx], [field]: value }
+    setExercises(arr)
   }
 
-  // gym exercise handlers
-  const handleExerciseChange = (idx, field, value) => {
-    setGymExercises(exs =>
-      exs.map((ex,i) =>
-        i===idx ? { ...ex, [field]: value } : ex
-      )
-    )
-  }
+  // Add a new blank exercise row
   const addExercise = () => {
-    setGymExercises(exs => [
-      ...exs,
-      { name:'', sets:'', reps:'', weight:'', notes:'' }
+    setExercises([
+      ...exercises,
+      { name: '', sets: '', reps: '', weight: '' },
     ])
   }
 
-  // submit handler
-  const handleSubmit = async e => {
-    e.preventDefault()
+  // Remove an exercise row
+  const removeExercise = (idx) => {
+    setExercises(exercises.filter((_, i) => i !== idx))
+  }
 
-    // base payload
-    let payload = { date: form.date, activity: form.activity }
+  // When the user leaves the name field, look up their last sets/reps/weight
+  const handleNameBlur = async (idx) => {
+    const exName = exercises[idx].name.trim()
+    if (!exName) return
 
-    if (form.activity === 'Gym' || form.activity === 'Strength Training') {
-      payload.exercises = gymExercises
-    } else {
-      payload = {
-        ...payload,
-        duration:   form.duration,
-        distance:   form.distance,
-        notes:      form.notes,
-        pace:       form.pace,
-        route:      form.route,
-        elevation:  form.elevation,
-        avgSpeed:   form.avgSpeed,
-        stroke:     form.stroke,
-        poolType:   form.poolType,
-        style:      form.style,
-        difficulty: form.difficulty,
-        steps:      form.steps,
-        strokeRate: form.strokeRate,
-        trail:      form.trail
+    const { data: { user } = {} } = await supabase.auth.getUser()
+    if (!user) return
+
+    const { data: entries } = await supabase
+      .from('entries')
+      .select('exercises')
+      .eq('user_id', user.id)
+      .eq('type', 'Gym')
+      .order('date', { ascending: false })
+      .limit(20)
+
+    for (const entry of entries || []) {
+      const match = entry.exercises.find((e) => e.name === exName)
+      if (match) {
+        const updated = exercises.slice()
+        updated[idx] = {
+          name: exName,
+          sets: match.sets,
+          reps: match.reps,
+          weight: match.weight ?? '',
+        }
+        setExercises(updated)
+        break
       }
     }
+  }
 
-    try {
-      await addEntry(JSON.stringify(payload))
-      // reset form & exercises
-      setForm({
-        date:       new Date().toISOString().slice(0,10),
-        activity:   '', duration:'', distance:'', notes:'',
-        pace:'', route:'', elevation:'', avgSpeed:'',
-        stroke:'', poolType:'', style:'', difficulty:'',
-        steps:'', strokeRate:'', trail:''
-      })
-      setGymExercises([{ name:'', sets:'', reps:'', weight:'', notes:'' }])
-    } catch (err) {
-      console.error(err)
-      alert(err.message)
+  // Save or update the entry
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+
+    const { data: { user } = {} } = await supabase.auth.getUser()
+    if (!user) {
+      alert('You must be signed in to save logs.')
+      setLoading(false)
+      return
+    }
+
+    const isoDate = formatISO(displayDate)
+    const payload = {
+      user_id: user.id,
+      date: isoDate,
+      type: activityType,
+      notes,
+    }
+
+    if (activityType === 'Gym') {
+      payload.exercises = exercises
+      payload.segments = []
+    } else {
+      payload.exercises = []
+      payload.segments =
+        activityType === 'Swim'
+          ? [{ laps, time }]
+          : [{ distance, duration }]
+    }
+
+    const res = entryToEdit
+      ? await supabase.from('entries').update(payload).eq('id', entryToEdit.id)
+      : await supabase.from('entries').insert([payload])
+
+    setLoading(false)
+    if (res.error) {
+      alert(
+        `${entryToEdit ? 'Could not update' : 'Could not save'} entry:\n${
+          res.error.message
+        }`
+      )
+    } else {
+      navigate('/history', { replace: true })
     }
   }
 
   return (
-    <div className="page-container">
-      <div className="page-card">
-        <h2>Log a New Activity</h2>
-        <form className="activity-form" onSubmit={handleSubmit}>
-          {/* Date + Activity */}
-          <label>
-            Date
-            <input
-              type="date"
-              name="date"
-              value={form.date}
-              onChange={handleChange}
-              required
-            />
-          </label>
+    <main className="p-6">
+      <h1 className="text-2xl font-bold mb-4">
+        {entryToEdit ? 'Edit' : 'Log'} Activity
+      </h1>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Date */}
+        <div>
+          <label className="block font-medium">Date</label>
+          <input
+            type="text"
+            value={displayDate}
+            onChange={(e) => setDisplayDate(e.target.value)}
+            className="mt-1 w-full border rounded px-3 py-2 bg-gray-100"
+            required
+          />
+        </div>
 
-          <label>
-            Activity
-            <select
-              name="activity"
-              value={form.activity}
-              onChange={handleChange}
-              required
-            >
-              <option value="">– Choose –</option>
-              {ACTIVITY_TYPES.map(a => (
-                <option key={a} value={a}>{a}</option>
-              ))}
-            </select>
-          </label>
+        {/* Activity selector */}
+        <div>
+          <label className="block font-medium">Activity</label>
+          <select
+            value={activityType}
+            onChange={(e) => setActivityType(e.target.value)}
+            className="mt-1 w-full border rounded px-3 py-2"
+          >
+            <option value="Run">🏃 Run</option>
+            <option value="Gym">🏋️ Gym</option>
+            <option value="Swim">🏊 Swim</option>
+            <option value="Cycle">🚴 Cycle</option>
+          </select>
+        </div>
 
-          {/* Gym / Strength Training */}
-          {(form.activity === 'Gym' || form.activity === 'Strength Training') && (
-            <>
-              <h3>Exercises</h3>
-              {gymExercises.map((ex, idx) => (
-                <div key={idx} className="gym-exercise">
+        {/* Gym form */}
+        {activityType === 'Gym' && (
+          <>
+            {exercises.map((ex, idx) => (
+              <div key={idx} className="border rounded p-4 space-y-2 relative">
+                {idx > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => removeExercise(idx)}
+                    className="absolute top-2 right-2 text-red-500"
+                    aria-label="Remove exercise"
+                  >
+                    ✕
+                  </button>
+                )}
+                <h2 className="font-medium">Exercise #{idx + 1}</h2>
+
+                {/* Name + dropdown */}
+                <div>
+                  <label className="block">Name</label>
                   <input
                     type="text"
-                    name={`gym-name-${idx}`}
-                    placeholder="Exercise Name"
+                    list="exercise-names"
                     value={ex.name}
-                    onChange={e => handleExerciseChange(idx, 'name', e.target.value)}
+                    onBlur={() => handleNameBlur(idx)}
+                    onChange={(e) => handleExerciseChange(idx, 'name', e.target.value)}
+                    className="mt-1 w-full border rounded px-3 py-2"
                     required
                   />
-                  <input
-                    type="number"
-                    name={`gym-sets-${idx}`}
-                    placeholder="Sets"
-                    value={ex.sets}
-                    step="1"
-                    onChange={e => handleExerciseChange(idx, 'sets', e.target.value)}
-                  />
-                  <input
-                    type="number"
-                    name={`gym-reps-${idx}`}
-                    placeholder="Reps"
-                    value={ex.reps}
-                    step="1"
-                    onChange={e => handleExerciseChange(idx, 'reps', e.target.value)}
-                  />
-                  <input
-                    type="number"
-                    name={`gym-weight-${idx}`}
-                    placeholder="Weight"
-                    value={ex.weight}
-                    step="any"
-                    onChange={e => handleExerciseChange(idx, 'weight', e.target.value)}
-                  />
-                  <input
-                    type="text"
-                    name={`gym-notes-${idx}`}
-                    placeholder="Notes"
-                    value={ex.notes}
-                    onChange={e => handleExerciseChange(idx, 'notes', e.target.value)}
-                  />
+                  <datalist id="exercise-names">
+                    {exerciseNames.map((n) => (
+                      <option key={n} value={n} />
+                    ))}
+                  </datalist>
                 </div>
-              ))}
-              <button
-                type="button"
-                onClick={addExercise}
-                className="auth-button"
-              >
-                Add Exercise
-              </button>
-            </>
-          )}
 
-          {/* Run */}
-          {form.activity === 'Run' && (
-            <>
-              <label>
-                Duration (HH:MM)
-                <input
-                  type="text"
-                  name="duration"
-                  placeholder="e.g. 00:45"
-                  value={form.duration}
-                  onChange={handleChange}
-                />
-              </label>
-              <label>
-                Distance
-                <input
-                  type="number"
-                  name="distance"
-                  placeholder="km/miles"
-                  value={form.distance}
-                  step="any"
-                  onChange={handleChange}
-                />
-              </label>
-              <label>
-                Pace
-                <input
-                  type="text"
-                  name="pace"
-                  placeholder="5:00/mi"
-                  value={form.pace}
-                  onChange={handleChange}
-                />
-              </label>
-              <label>
-                Route
-                <input
-                  type="text"
-                  name="route"
-                  placeholder="Trail, park, etc."
-                  value={form.route}
-                  onChange={handleChange}
-                />
-              </label>
-              <label>
-                Notes
-                <textarea
-                  name="notes"
-                  placeholder="Additional details..."
-                  value={form.notes}
-                  onChange={handleChange}
-                />
-              </label>
-            </>
-          )}
-
-          {/* Cycling */}
-          {form.activity === 'Cycling' && (
-            <>
-              <label>
-                Duration (HH:MM)
-                <input
-                  type="text"
-                  name="duration"
-                  placeholder="e.g. 01:30"
-                  value={form.duration}
-                  onChange={handleChange}
-                />
-              </label>
-              <label>
-                Distance
-                <input
-                  type="number"
-                  name="distance"
-                  placeholder="km/miles"
-                  value={form.distance}
-                  step="any"
-                  onChange={handleChange}
-                />
-              </label>
-              <label>
-                Avg Speed
-                <input
-                  type="number"
-                  name="avgSpeed"
-                  placeholder="e.g. 20"
-                  value={form.avgSpeed}
-                  step="any"
-                  onChange={handleChange}
-                />
-              </label>
-              <label>
-                Elevation Gain
-                <input
-                  type="number"
-                  name="elevation"
-                  placeholder="meters/feet"
-                  value={form.elevation}
-                  step="any"
-                  onChange={handleChange}
-                />
-              </label>
-              <label>
-                Route
-                <input
-                  type="text"
-                  name="route"
-                  placeholder="Road/trail name"
-                  value={form.route}
-                  onChange={handleChange}
-                />
-              </label>
-              <label>
-                Notes
-                <textarea
-                  name="notes"
-                  placeholder="Additional details..."
-                  value={form.notes}
-                  onChange={handleChange}
-                />
-              </label>
-            </>
-          )}
-
-          {/* Swimming */}
-          {form.activity === 'Swimming' && (
-            <>
-              <label>
-                Duration (HH:MM)
-                <input
-                  type="text"
-                  name="duration"
-                  placeholder="e.g. 00:30"
-                  value={form.duration}
-                  onChange={handleChange}
-                />
-              </label>
-              <label>
-                Distance
-                <input
-                  type="number"
-                  name="distance"
-                  placeholder="yards/meters"
-                  value={form.distance}
-                  step="any"
-                  onChange={handleChange}
-                />
-              </label>
-              <label>
-                Stroke
-                <select
-                  name="stroke"
-                  value={form.stroke}
-                  onChange={handleChange}
-                >
-                  <option value="">— select —</option>
-                  {SWIM_STROKES.map(s => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                In
-                <select
-                  name="poolType"
-                  value={form.poolType}
-                  onChange={handleChange}
-                >
-                  <option value="">— pool/open —</option>
-                  {POOL_TYPES.map(p => (
-                    <option key={p} value={p}>{p}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Notes
-                <textarea
-                  name="notes"
-                  placeholder="Additional details..."
-                  value={form.notes}
-                  onChange={handleChange}
-                />
-              </label>
-            </>
-          )}
-
-          {/* Yoga */}
-          {form.activity === 'Yoga' && (
-            <>
-              <label>
-                Duration (HH:MM)
-                <input
-                  type="text"
-                  name="duration"
-                  placeholder="e.g. 01:00"
-                  value={form.duration}
-                  onChange={handleChange}
-                />
-              </label>
-              <label>
-                Style
-                <select
-                  name="style"
-                  value={form.style}
-                  onChange={handleChange}
-                >
-                  <option value="">— select —</option>
-                  {YOGA_STYLES.map(s => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Difficulty
-                <select
-                  name="difficulty"
-                  value={form.difficulty}
-                  onChange={handleChange}
-                >
-                  <option value="">— select —</option>
-                  {DIFFICULTIES.map(d => (
-                    <option key={d} value={d}>{d}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Notes
-                <textarea
-                  name="notes"
-                  placeholder="Additional details..."
-                  value={form.notes}
-                  onChange={handleChange}
-                />
-              </label>
-            </>
-          )}
-
-          {/* Hike */}
-          {form.activity === 'Hike' && (
-            <>
-              <label>
-                Duration (HH:MM)
-                <input
-                  type="text"
-                  name="duration"
-                  placeholder="e.g. 03:00"
-                  value={form.duration}
-                  onChange={handleChange}
-                />
-              </label>
-              <label>
-                Distance
-                <input
-                  type="number"
-                  name="distance"
-                  placeholder="km/miles"
-                  value={form.distance}
-                  step="any"
-                  onChange={handleChange}
-                />
-              </label>
-              <label>
-                Elevation Gain
-                <input
-                  type="number"
-                  name="elevation"
-                  placeholder="meters/feet"
-                  value={form.elevation}
-                  step="any"
-                  onChange={handleChange}
-                />
-              </label>
-              <label>
-                Trail
-                <input
-                  type="text"
-                  name="trail"
-                  placeholder="Trail name"
-                  value={form.trail}
-                  onChange={handleChange}
-                />
-              </label>
-              <label>
-                Notes
-                <textarea
-                  name="notes"
-                  placeholder="Additional details..."
-                  value={form.notes}
-                  onChange={handleChange}
-                />
-              </label>
-            </>
-          )}
-
-          {/* Walk */}
-          {form.activity === 'Walk' && (
-            <>
-              <label>
-                Duration (HH:MM)
-                <input
-                  type="text"
-                  name="duration"
-                  placeholder="e.g. 00:45"
-                  value={form.duration}
-                  onChange={handleChange}
-                />
-              </label>
-              <label>
-                Distance
-                <input
-                  type="number"
-                  name="distance"
-                  placeholder="km/miles"
-                  value={form.distance}
-                  step="any"
-                  onChange={handleChange}
-                />
-              </label>
-              <label>
-                Steps
-                <input
-                  type="number"
-                  name="steps"
-                  placeholder="e.g. 5000"
-                  value={form.steps}
-                  onChange={handleChange}
-                />
-              </label>
-              <label>
-                Route
-                <input
-                  type="text"
-                  name="route"
-                  placeholder="Neighborhood, park..."
-                  value={form.route}
-                  onChange={handleChange}
-                />
-              </label>
-              <label>
-                Notes
-                <textarea
-                  name="notes"
-                  placeholder="Additional details..."
-                  value={form.notes}
-                  onChange={handleChange}
-                />
-              </label>
-            </>
-          )}
-
-          {/* Rowing */}
-          {form.activity === 'Rowing' && (
-            <>
-              <label>
-                Duration (HH:MM)
-                <input
-                  type="text"
-                  name="duration"
-                  placeholder="e.g. 00:30"
-                  value={form.duration}
-                  onChange={handleChange}
-                />
-              </label>
-              <label>
-                Distance (meters)
-                <input
-                  type="number"
-                  name="distance"
-                  placeholder="e.g. 2000"
-                  value={form.distance}
-                  step="any"
-                  onChange={handleChange}
-                />
-              </label>
-              <label>
-                Stroke Rate (spm)
-                <input
-                  type="number"
-                  name="strokeRate"
-                  placeholder="e.g. 26"
-                  value={form.strokeRate}
-                  onChange={handleChange}
-                />
-              </label>
-              <label>
-                Notes
-                <textarea
-                  name="notes"
-                  placeholder="Additional details..."
-                  value={form.notes}
-                  onChange={handleChange}
-                />
-              </label>
-            </>
-          )}
-
-          <button type="submit" className="auth-button">
-            Add Activity
-          </button>
-        </form>
-      </div>
-
-      {/* Recent entries preview */}
-      <div className="page-card">
-        <h3>Your Recent Entries</h3>
-        {loading ? (
-          <p>Loading…</p>
-        ) : entries.length ? (
-          <ul className="entry-list">
-            {entries.map(e => {
-              const data = e.segments || {}
-              return (
-                <li key={e.id} className="entry-item">
-                  <div className="entry-head">
-                    <time>{data.date}</time>
-                    <strong> {data.activity}</strong>
+                {/* Sets / Reps / Weight */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block">Sets</label>
+                    <input
+                      type="number"
+                      value={ex.sets}
+                      onChange={(e) => handleExerciseChange(idx, 'sets', e.target.value)}
+                      className="mt-1 w-full border rounded px-3 py-2"
+                      min="1"
+                      placeholder="e.g. 3"
+                    />
                   </div>
-                  <pre style={{ whiteSpace:'pre-wrap',padding:'0.5rem' }}>
-                    {JSON.stringify(data, null, 2)}
-                  </pre>
-                </li>
-              )
-            })}
-          </ul>
-        ) : (
-          <p>No entries yet!</p>
+                  <div>
+                    <label className="block">Reps</label>
+                    <input
+                      type="number"
+                      value={ex.reps}
+                      onChange={(e) => handleExerciseChange(idx, 'reps', e.target.value)}
+                      className="mt-1 w-full border rounded px-3 py-2"
+                      min="1"
+                      placeholder="e.g. 8"
+                    />
+                  </div>
+                  <div>
+                    <label className="block">Weight (kg)</label>
+                    <input
+                      type="number"
+                      value={ex.weight}
+                      onChange={(e) => handleExerciseChange(idx, 'weight', e.target.value)}
+                      className="mt-1 w-full border rounded px-3 py-2"
+                      min="0"
+                      placeholder="e.g. 20"
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+            <button type="button" onClick={addExercise} className="text-blue-600 hover:underline">
+              + Add Exercise
+            </button>
+          </>
         )}
-      </div>
-    </div>
-)
+
+        {/* Run/Cycle form */}
+        {activityType !== 'Gym' && activityType !== 'Swim' && (
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block font-medium">Distance</label>
+              <input
+                type="text"
+                value={distance}
+                onChange={(e) => setDistance(e.target.value)}
+                className="mt-1 w-full border rounded px-3 py-2"
+                placeholder="e.g. 5 km"
+                required
+              />
+            </div>
+            <div>
+              <label className="block font-medium">Duration</label>
+              <input
+                type="text"
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
+                className="mt-1 w-full border rounded px-3 py-2"
+                placeholder="e.g. 30 min"
+                required
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Swim form */}
+        {activityType === 'Swim' && (
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block font-medium">Laps</label>
+              <input
+                type="number"
+                value={laps}
+                onChange={(e) => setLaps(e.target.value)}
+                className="mt-1 w-full border rounded px-3 py-2"
+                placeholder="e.g. 20"
+                min="1"
+                required
+              />
+            </div>
+            <div>
+              <label className="block font-medium">Time</label>
+              <input
+                type="text"
+                value={time}
+                onChange={(e) => setTime(e.target.value)}
+                className="mt-1 w-full border rounded px-3 py-2"
+                placeholder="e.g. 45 min"
+                required
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Notes */}
+        <div>
+          <label className="block font-medium">Notes</label>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            className="mt-1 w-full border rounded px-3 py-2 h-24"
+          />
+        </div>
+
+        {/* Submit */}
+        <button
+          type="submit"
+          disabled={loading}
+          className={`w-full py-3 text-white rounded ${
+            loading ? 'bg-gray-400' : 'bg-green-600 hover:bg-green-700'
+          }`}
+        >
+          {loading ? 'Saving…' : entryToEdit ? 'Update Entry' : 'Save Log'}
+        </button>
+      </form>
+    </main>
+  )
 }
