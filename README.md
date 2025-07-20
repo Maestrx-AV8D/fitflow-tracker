@@ -1,12 +1,39 @@
-# React + Vite
+# FitFlow
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A modern, mobile-first fitness tracker built with Vite, React, and Supabase.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 🚀 Features
 
-## Expanding the ESLint configuration
+- 🔐 Email/password sign up & login via Supabase Auth  
+- 🏠 **Dashboard:** at-a-glance stats, chart area, and progress overview  
+- 📋 **Activities:** browse workouts (Gym, Run, Cycle, Swim, Yoga, etc.)  
+- ✍️ **Log:** record duration, distance, sets/reps, and notes  
+- 📈 **History:** view past entries, filter by date  
+- 👤 **Profile:** track body metrics (weight, height) over time  
+- 🌗 **Light / Dark mode** toggle  
+- 📱 **Responsive UI** with bottom navigation  
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+---
+
+## 📸 Demo
+
+![FitFlow Preview](./public/preview.png)  
+*Screenshot of the Activities screen in Dark Mode*
+
+---
+
+## 🛠 Getting Started
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) v16+  
+- [npm](https://www.npmjs.com/) v8+ (or Yarn)
+
+### Installation
+
+1. Clone the repo  
+   ```bash
+   git clone https://github.com/YourUsername/fitflow.git
+   cd fitflow# fitflow-tracker
