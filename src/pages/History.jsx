@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabaseClient'
 export default function History() {
   const [entries, setEntries] = useState([])
   const [loading, setLoading] = useState(true)
+  const navigate = useNavigate()
 
   // load all entries for the signed-in user
   const fetchEntries = async () => {
@@ -46,6 +47,11 @@ export default function History() {
     }
   }
 
+  // edit → navigate to /log with entry in location state
+  const handleEdit = (entry) => {
+    navigate('/log', { state: { entry } })
+  }
+
   // split into Gym vs Other
   const gymEntries = entries.filter((e) => e.type === 'Gym')
   const otherEntries = entries.filter((e) => e.type !== 'Gym')
@@ -72,6 +78,7 @@ export default function History() {
                     key={entry.id}
                     entry={entry}
                     onDelete={handleDelete}
+                    onEdit={handleEdit}
                   />
                 ))}
               </div>
@@ -90,6 +97,7 @@ export default function History() {
                     key={entry.id}
                     entry={entry}
                     onDelete={handleDelete}
+                    onEdit={handleEdit}
                   />
                 ))}
               </div>
@@ -102,10 +110,8 @@ export default function History() {
 }
 
 // reusable card component
-function EntryCard({ entry, onDelete }) {
-  const navigate = useNavigate()
-
-  // choose a badge color based on type
+function EntryCard({ entry, onDelete, onEdit }) {
+  // badge color based on type
   const badgeColor =
     entry.type === 'Gym'
       ? 'bg-purple-100 text-purple-800'
@@ -152,10 +158,9 @@ function EntryCard({ entry, onDelete }) {
           <p className="mb-3 text-gray-600 italic">“{entry.notes}”</p>
         )}
       </div>
-
-      <div className="flex justify-end space-x-4 mt-4">
+      <div className="mt-4 flex justify-end space-x-4">
         <button
-          onClick={() => navigate('/log', { state: { entry } })}
+          onClick={() => onEdit(entry)}
           className="text-blue-600 hover:underline"
         >
           Edit
