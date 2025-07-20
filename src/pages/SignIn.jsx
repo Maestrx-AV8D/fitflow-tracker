@@ -1,34 +1,27 @@
 // src/pages/SignIn.jsx
-import React, { useState } from 'react';
-import { supabase } from '../lib/supabaseClient';
+import React, { useState } from 'react'
+import { supabase } from '../lib/supabaseClient'
 
 export default function SignIn() {
-  const [email, setEmail] = useState('');
-  const [message, setMessage] = useState('');
+  const [email, setEmail] = useState('')
+  const [message, setMessage] = useState('')
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setMessage('');
-
-    // force Supabase to redirect back to our current origin (localhost or production)
-    const { error } = await supabase.auth.signInWithOtp(
-      { email },
-      {
-        options: {
-          // window.location.origin will be:
-          //  • http://localhost:5173 in dev
-          //  • https://your-vercel-domain.vercel.app in prod
-          redirectTo: window.location.origin,
-        },
+    e.preventDefault()
+    setMessage('')
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        // send magic link that returns to this exact origin
+        emailRedirectTo: window.location.origin
       }
-    );
-
+    })
     if (error) {
-      setMessage(error.message);
+      setMessage(error.message)
     } else {
-      setMessage(`Check your email for the magic link!`);
+      setMessage('Check your email for the magic link!')
     }
-  };
+  }
 
   return (
     <main className="h-screen flex items-center justify-center p-4">
@@ -51,5 +44,5 @@ export default function SignIn() {
         {message && <p className="text-sm mt-2">{message}</p>}
       </form>
     </main>
-  );
+  )
 }
