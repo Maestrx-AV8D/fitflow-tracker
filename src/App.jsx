@@ -1,6 +1,8 @@
 // src/App.jsx
 import React from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { useAuth } from './hooks/useAuth'
+
 import RequireAuth from './components/RequireAuth'
 import BottomNav from './components/BottomNav'
 
@@ -10,20 +12,28 @@ import Log from './pages/Log'
 import History from './pages/History'
 import Profile from './pages/Profile'
 
+/**
+ * Redirects to /dashboard if logged in, otherwise to /signin.
+ */
+function HomeRedirect() {
+  const user = useAuth()
+  return <Navigate to={user ? '/dashboard' : '/signin'} replace />
+}
+
 export default function App() {
   const location = useLocation()
-  const isAuthPage = location.pathname === '/signin'
+  const user = useAuth()
 
   return (
     <div className="pb-16">
       <Routes>
-        {/* Public */}
+        {/* root goes through HomeRedirect */}
+        <Route path="/" element={<HomeRedirect />} />
+
+        {/* public auth page */}
         <Route path="/signin" element={<SignIn />} />
 
-        {/* Redirect root to dashboard */}
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-
-        {/* Protected */}
+        {/* protected application routes */}
         <Route
           path="/dashboard"
           element={
@@ -57,16 +67,12 @@ export default function App() {
           }
         />
 
-        {/* Catch-all: redirect unknowns */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        {/* catch-all also goes through HomeRedirect */}
+        <Route path="*" element={<HomeRedirect />} />
       </Routes>
 
-      {/* Only show bottom nav when signed in (not on /signin) */}
-      {!isAuthPage && (
-        <RequireAuth>
-          <BottomNav />
-        </RequireAuth>
-      )}
+      {/* show bottom nav only when authenticated */}
+      {user && <BottomNav />}
     </div>
   )
 }
