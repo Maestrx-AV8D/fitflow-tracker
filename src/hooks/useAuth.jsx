@@ -3,32 +3,32 @@ import { supabase } from '../lib/supabaseClient'
 
 const AuthContext = createContext()
 
-/**
- * Provides the current Supabase user and signOut function throughout the tree.
- */
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
+  const [initializing, setInitializing] = useState(true)
 
-  // fetch initial session & listen for changes
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // 1) on mount, fetch the existing session
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        setUser(session?.user ?? null)
+      })
+      .finally(() => {
+        setInitializing(false)
+      })
+
+    // 2) subscribe to auth changes
+    const { subscription } = supabase.auth.onAuthStateChange((_, session) => {
       setUser(session?.user ?? null)
     })
 
-    const { subscription } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-    })
-
-    return () => {
-      subscription?.unsubscribe()
-    }
+    return () => subscription.unsubscribe()
   }, [])
 
-  // log the user out
-  const signOut = async () => {
-    await supabase.auth.signOut()
-    setUser(null)
-  }
+  const signOut = () => supabase.auth.signOut().then(() => setUser(null))
+
+  // while we're waiting for Supabase, don't render anything
+  if (initializing) return null
 
   return (
     <AuthContext.Provider value={{ user, signOut }}>
@@ -37,14 +37,10 @@ export function AuthProvider({ children }) {
   )
 }
 
-/**
- * Hook to access the current user and auth actions.
- * Returns: { user, signOut }
- */
 export function useAuth() {
-  const context = useContext(AuthContext)
-  if (context === undefined) {
+  const ctx = useContext(AuthContext)
+  if (ctx === undefined) {
     throw new Error('useAuth must be used within an AuthProvider')
   }
-  return context
+  return ctx
 }

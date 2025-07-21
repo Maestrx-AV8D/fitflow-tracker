@@ -1,42 +1,40 @@
-// src/pages/SignIn.jsx
-import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { supabase } from '../lib/supabaseClient'
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabaseClient';
 
 export default function SignIn() {
-  const [email, setEmail] = useState('')
-  const [message, setMessage] = useState('')
-  const navigate = useNavigate()
+  const [email, setEmail]     = useState('');
+  const [message, setMessage] = useState('');
+  const navigate              = useNavigate();
 
-  // Auto‐consume magic link token if present
+  // Auto‐consume magic link token if present in URL
   useEffect(() => {
     async function handleAuthFromUrl() {
-      // new helper if available
-      let data, error
-      if (supabase.auth.getSessionFromUrl) {
-        ({ data, error } = await supabase.auth.getSessionFromUrl())
-      } else {
-        ({ data, error } = await supabase.auth.getSession())
-      }
+      // newer helper
+      const hasHelper = typeof supabase.auth.getSessionFromUrl === 'function';
+      const { data, error } = hasHelper
+        ? await supabase.auth.getSessionFromUrl({ storeSession: true })
+        : await supabase.auth.getSession();
+
       if (error) {
-        console.error('Auth URL error:', error.message)
-      } else if (data.session) {
-        navigate('/dashboard', { replace: true })
+        console.error('Auth URL error:', error.message);
+      } else if (data?.session) {
+        navigate('/dashboard', { replace: true });
       }
     }
-    handleAuthFromUrl()
-  }, [navigate])
+    handleAuthFromUrl();
+  }, [navigate]);
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
-    setMessage('')
+    e.preventDefault();
+    setMessage('');
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: { emailRedirectTo: window.location.origin }
-    })
-    if (error) setMessage(error.message)
-    else       setMessage('✅ Check your email for the magic link!')
-  }
+    });
+    if (error) setMessage(error.message);
+    else       setMessage('✅ Check your email for the magic link!');
+  };
 
   return (
     <main className="flex items-center justify-center min-h-screen bg-neutral-light p-4">
@@ -66,5 +64,5 @@ export default function SignIn() {
         {message && <p className="text-center text-sm text-accent-orange">{message}</p>}
       </div>
     </main>
-  )
+  );
 }

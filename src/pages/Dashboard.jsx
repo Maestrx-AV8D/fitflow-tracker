@@ -17,30 +17,24 @@ export default function Dashboard() {
   const { user }   = useAuth()
   const navigate   = useNavigate()
 
-  const [fullName, setFullName]         = useState('')
-  const [entryCount, setEntryCount]     = useState(0)
+  const [fullName, setFullName]           = useState('')
+  const [entryCount, setEntryCount]       = useState(0)
   const [recentEntries, setRecentEntries] = useState([])
-  const [chartData, setChartData]       = useState([])
-  const [loading, setLoading]           = useState(true)
+  const [chartData, setChartData]         = useState([])
+  const [loading, setLoading]             = useState(true)
 
   // Wait for `user` to resolve
   useEffect(() => {
-    if (user === undefined) {
-      // still checking auth
-      return
-    }
+    if (user === undefined) return        // still checking auth
     if (user === null) {
-      // not signed in → kick back to /signin
       navigate('/signin', { replace: true })
       return
     }
-    // now we have a real user
     fetchData()
   }, [user, navigate])
 
   async function fetchData() {
     setLoading(true)
-
     // 1) Load profile name
     const { data: profile } = await supabase
       .from('profiles')
@@ -75,11 +69,11 @@ export default function Dashboard() {
         count: 0,
       })
     }
-    ;(entries || []).forEach((e) => {
+    ;(entries || []).forEach(e => {
       const label = new Date(e.date).toLocaleDateString('en-GB', {
         weekday: 'short',
       })
-      const slot = weekArr.find((w) => w.day === label)
+      const slot = weekArr.find(w => w.day === label)
       if (slot) slot.count += 1
     })
     setChartData(weekArr)
@@ -87,7 +81,6 @@ export default function Dashboard() {
     setLoading(false)
   }
 
-  // While loading or waiting on auth, show nothing (or a spinner)
   if (loading || user === undefined) {
     return (
       <main className="p-6 bg-neutral-light min-h-screen flex items-center justify-center">
@@ -115,10 +108,12 @@ export default function Dashboard() {
         />
         <StatCard
           title="Exercises Completed"
-          value={recentEntries.reduce(
-            (sum, e) => sum + (e.exercises?.length || 0),
-            0
-          )}
+          value={
+            recentEntries.reduce(
+              (sum, e) => sum + (e.exercises?.length || 0),
+              0
+            )
+          }
           bg="from-green-500 to-teal-500"
         />
         <StatCard
@@ -156,7 +151,7 @@ export default function Dashboard() {
       <button
         aria-label="Log Workout"
         onClick={() => navigate('/log')}
-        className="fixed bottom-24 right-6 bg-accent-orange text-white p-4 rounded-full shadow-lg hover:scale-105 transition"
+        className="fixed bottom-24 right-6 bg-gradient-to-r from-teal-400 to-blue-500 text-white p-4 rounded-full shadow-lg hover:scale-105 transition"
       >
         <PlusIcon className="h-6 w-6" />
       </button>

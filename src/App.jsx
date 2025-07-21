@@ -15,24 +15,76 @@ import SmartWorkout from './pages/SmartWorkout'
 import Schedule     from './pages/Schedule'
 
 export default function App() {
-  const user = useAuth()
+  const { user } = useAuth()
 
   return (
     <div className="pb-16 bg-neutral-light min-h-screen">
       <Header />
 
       <Routes>
-        <Route path="*" element={<Navigate to="/signin" replace />} />
+        {/* public */}
         <Route path="/signin" element={<SignIn />} />
 
-        <Route path="/dashboard" element={<RequireAuth><Dashboard/></RequireAuth>} />
-        <Route path="/log"        element={<RequireAuth><Log/></RequireAuth>} />
-        <Route path="/history"    element={<RequireAuth><History/></RequireAuth>} />
-        <Route path="/coach"      element={<RequireAuth><SmartWorkout/></RequireAuth>} />
-        <Route path="/schedule"   element={<RequireAuth><Schedule/></RequireAuth>} />
-        <Route path="/profile"    element={<RequireAuth><Profile/></RequireAuth>} />
+        {/* protected */}
+        <Route
+          path="/dashboard"
+          element={
+            <RequireAuth>
+              <Dashboard />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/log"
+          element={
+            <RequireAuth>
+              <Log />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/history"
+          element={
+            <RequireAuth>
+              <History />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/coach"
+          element={
+            <RequireAuth>
+              <SmartWorkout />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/schedule"
+          element={
+            <RequireAuth>
+              <Schedule />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <RequireAuth>
+              <Profile />
+            </RequireAuth>
+          }
+        />
+
+        {/* catch-all → redirect based on auth */}
+        <Route
+          path="*"
+          element={
+            <Navigate to={user ? '/dashboard' : '/signin'} replace />
+          }
+        />
       </Routes>
 
+      {/* only show bottom nav once signed in */}
       {user && <BottomNav />}
     </div>
   )

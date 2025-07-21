@@ -1,12 +1,11 @@
+// src/components/Header.jsx
 import React from 'react'
-import { Link } from 'react-router-dom'
 
 export default function Header() {
   return (
-    <header className="header">
-      <Link to="/dashboard" className="logo">
-        <span>Fit</span>Flow
-      </Link>
+    <header className="p-4 bg-white shadow flex items-center">
+      <h1 className="text-2xl font-bold text-purple-600">FitFlow</h1>
+      {/* …rest of your header… */}
     </header>
   )
 }
