@@ -4,28 +4,27 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './hooks/useAuth'
 
 import RequireAuth from './components/RequireAuth'
-import BottomNav from './components/BottomNav'
+import BottomNav   from './components/BottomNav'
 
-import SignIn from './pages/SignIn'
+import SignIn   from './pages/SignIn'
 import Dashboard from './pages/Dashboard'
-import Log from './pages/Log'
-import History from './pages/History'
-import Profile from './pages/Profile'
+import Log       from './pages/Log'
+import History   from './pages/History'
+import Profile   from './pages/Profile'
 
 export default function App() {
   const user = useAuth()
 
   return (
-    <div className="pb-16">
+    <div className="pb-16 bg-neutral-light min-h-screen">
       <Routes>
-        {/* Always send root or unknown paths to SignIn */}
-        <Route path="/" element={<Navigate to="/signin" replace />} />
+        {/* Catch-all: let React Router handle redirect logic */}
         <Route path="*" element={<Navigate to="/signin" replace />} />
 
-        {/* public auth page */}
+        {/* Public */}
         <Route path="/signin" element={<SignIn />} />
 
-        {/* protected application routes */}
+        {/* Protected */}
         <Route
           path="/dashboard"
           element={
@@ -60,7 +59,7 @@ export default function App() {
         />
       </Routes>
 
-      {/* show bottom nav only when authenticated */}
+      {/* Bottom nav only for signed-in users */}
       {user && <BottomNav />}
     </div>
   )

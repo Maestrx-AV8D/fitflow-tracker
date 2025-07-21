@@ -5,117 +5,80 @@ import { supabase } from '../lib/supabaseClient'
 
 export default function Profile() {
   const navigate = useNavigate()
-
   const [formData, setFormData] = useState({
     full_name: '',
-    age: '',
-    gender: '',
-    height: '',
-    weight: '',
+    age:       '',
+    gender:    '',
+    height:    '',
+    weight:    ''
   })
-  const [loading, setLoading] = useState(false)
-  const [editing, setEditing] = useState(true)
+  const [loading, setLoading] = useState(true)
+  const [editing, setEditing] = useState(false)
 
-  // on mount, load the current user’s profile
   useEffect(() => {
-    fetchProfile()
+    loadProfile()
   }, [])
 
-  async function fetchProfile() {
+  async function loadProfile() {
     setLoading(true)
-    // get the logged-in user
-    const {
-      data: { user },
-      error: getUserError,
-    } = await supabase.auth.getUser()
-    if (getUserError || !user) {
-      console.error('Not signed in', getUserError)
-      setLoading(false)
-      return
-    }
-
-    // query by user_id
+    const { data: { user } } = await supabase.auth.getUser()
     const { data, error } = await supabase
       .from('profiles')
-      .select('*')
+      .select('full_name,age,gender,height_cm,current_weight_kg')
       .eq('user_id', user.id)
       .single()
 
-    if (error && error.code !== 'PGRST116') {
-      console.error('Error loading profile:', error)
-    } else if (data) {
+    if (!error && data) {
       setFormData({
         full_name: data.full_name || '',
-        age:       data.age != null   ? String(data.age)               : '',
+        age:       data.age?.toString() || '',
         gender:    data.gender || '',
-        height:    data.height_cm != null   ? String(data.height_cm)   : '',
-        weight:    data.current_weight_kg != null ? String(data.current_weight_kg) : '',
+        height:    data.height_cm?.toString() || '',
+        weight:    data.current_weight_kg?.toString() || ''
       })
-      setEditing(false) // start in view mode if profile exists
+      setEditing(false)
+    } else {
+      setEditing(true)
     }
-
     setLoading(false)
   }
 
   async function handleSubmit(e) {
     e.preventDefault()
     setLoading(true)
-
-    const {
-      data: { user },
-      error: getUserError,
-    } = await supabase.auth.getUser()
-    if (getUserError || !user) {
-      console.error('Not signed in', getUserError)
-      setLoading(false)
-      return
-    }
-
+    const { data: { user } } = await supabase.auth.getUser()
     const updates = {
-      user_id:           user.id,
-      full_name:         formData.full_name,
-      age:               Number(formData.age),
-      gender:            formData.gender,
-      height_cm:         Number(formData.height),
-      current_weight_kg: Number(formData.weight),
-      updated_at:        new Date(),
+      user_id: user.id,
+      full_name: formData.full_name,
+      age: Number(formData.age),
+      gender: formData.gender,
+      height_cm: Number(formData.height),
+      current_weight_kg: Number(formData.weight)
     }
-
     const { error } = await supabase
       .from('profiles')
       .upsert(updates, { onConflict: 'user_id' })
-
-    if (error) {
-      console.error('Error saving profile:', error)
-    } else {
-      setEditing(false)
-    }
-
+    if (!error) setEditing(false)
     setLoading(false)
   }
 
-  function handleChange(e) {
-    const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
-  }
+  const handleChange = e =>
+    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }))
 
-  // NEW: log out handler
   const handleLogout = async () => {
     await supabase.auth.signOut()
     navigate('/signin', { replace: true })
   }
 
   return (
-    <main className="p-6 max-w-lg mx-auto">
-      <h1 className="text-3xl font-bold mb-8 text-center">Your Profile</h1>
+    <main className="p-6 bg-neutral-light min-h-screen flex items-center justify-center">
+      <div className="w-full max-w-lg bg-white rounded-2xl shadow-lg p-8 space-y-6">
+        <h1 className="text-3xl font-bold text-center">Your Profile</h1>
 
-      {loading ? (
-        <p className="text-center text-gray-500">Loading…</p>
-      ) : editing ? (
-        // ——— EDIT FORM CARD ———
-        <div className="bg-white shadow-lg rounded-lg p-6">
+        {loading ? (
+          <p className="text-center text-gray-500">Loading…</p>
+        ) : editing ? (
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Full Name */}
             <div>
               <label htmlFor="full_name" className="block mb-1 font-medium">
                 Full Name
@@ -130,10 +93,7 @@ export default function Profile() {
                 required
               />
             </div>
-
-            {/* Two-column grid for the rest */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Age */}
               <div>
                 <label htmlFor="age" className="block mb-1 font-medium">
                   Age
@@ -149,8 +109,6 @@ export default function Profile() {
                   required
                 />
               </div>
-
-              {/* Gender */}
               <div>
                 <label htmlFor="gender" className="block mb-1 font-medium">
                   Gender
@@ -169,8 +127,6 @@ export default function Profile() {
                   <option value="other">Other</option>
                 </select>
               </div>
-
-              {/* Height */}
               <div>
                 <label htmlFor="height" className="block mb-1 font-medium">
                   Height (cm)
@@ -186,8 +142,6 @@ export default function Profile() {
                   required
                 />
               </div>
-
-              {/* Weight */}
               <div>
                 <label htmlFor="weight" className="block mb-1 font-medium">
                   Weight (kg)
@@ -204,8 +158,6 @@ export default function Profile() {
                 />
               </div>
             </div>
-
-            {/* Save Button */}
             <button
               type="submit"
               disabled={loading}
@@ -216,36 +168,32 @@ export default function Profile() {
               {loading ? 'Saving…' : 'Save Profile'}
             </button>
           </form>
-        </div>
-      ) : (
-        // ——— VIEW MODE CARD ———
-        <div className="bg-white shadow-lg rounded-lg p-6 text-center">
-          <h2 className="text-2xl font-semibold mb-4">
-            {formData.full_name}
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-gray-700 mb-6">
-            <div><strong>Age:</strong> {formData.age}</div>
-            <div><strong>Gender:</strong> {formData.gender}</div>
-            <div><strong>Height:</strong> {formData.height} cm</div>
-            <div><strong>Weight:</strong> {formData.weight} kg</div>
+        ) : (
+          <div className="text-center space-y-4">
+            <h2 className="text-2xl font-semibold">{formData.full_name}</h2>
+            <div className="grid grid-cols-2 gap-4 text-gray-700">
+              <div><strong>Age:</strong> {formData.age}</div>
+              <div><strong>Gender:</strong> {formData.gender}</div>
+              <div><strong>Height:</strong> {formData.height} cm</div>
+              <div><strong>Weight:</strong> {formData.weight} kg</div>
+            </div>
+            <div className="flex justify-center gap-4 mt-6">
+              <button
+                onClick={() => setEditing(true)}
+                className="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              >
+                Edit
+              </button>
+              <button
+                onClick={handleLogout}
+                className="px-6 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+              >
+                Log Out
+              </button>
+            </div>
           </div>
-          <div className="flex gap-4 justify-center">
-            <button
-              onClick={() => setEditing(true)}
-              className="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-            >
-              Edit Profile
-            </button>
-            {/* NEW: Log Out */}
-            <button
-              onClick={handleLogout}
-              className="px-6 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-            >
-              Log Out
-            </button>
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </main>
   )
 }

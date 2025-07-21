@@ -1,186 +1,175 @@
 // src/pages/Dashboard.jsx
 import React, { useState, useEffect } from 'react'
-import { supabase } from '../lib/supabaseClient'
-import { useAuth } from '../hooks/useAuth'
+import { useNavigate } from 'react-router-dom'
+import { supabase }   from '../lib/supabaseClient'
+import { useAuth }    from '../hooks/useAuth'
+import { PlusIcon }   from '@heroicons/react/24/outline'
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts'
 
 export default function Dashboard() {
-  const { user } = useAuth()
-  const [fullName, setFullName] = useState('')
-  const [entryCount, setEntryCount] = useState(0)
-  const [recentEntries, setRecentEntries] = useState([])
-  const [loading, setLoading] = useState(true)
+  const { user }   = useAuth()
+  const navigate   = useNavigate()
 
+  const [fullName, setFullName]         = useState('')
+  const [entryCount, setEntryCount]     = useState(0)
+  const [recentEntries, setRecentEntries] = useState([])
+  const [chartData, setChartData]       = useState([])
+  const [loading, setLoading]           = useState(true)
+
+  // Wait for `user` to resolve
   useEffect(() => {
+    if (user === undefined) {
+      // still checking auth
+      return
+    }
+    if (user === null) {
+      // not signed in → kick back to /signin
+      navigate('/signin', { replace: true })
+      return
+    }
+    // now we have a real user
     fetchData()
-  }, [])
+  }, [user, navigate])
 
   async function fetchData() {
     setLoading(true)
 
-    // get current user
-    const {
-      data: { user: currentUser },
-      error: userError
-    } = await supabase.auth.getUser()
-
-    if (userError || !currentUser) {
-      console.error('Not signed in', userError)
-      setLoading(false)
-      return
-    }
-
-    const userId = currentUser.id
-
-    // — fetch profile to get full_name —
-    const { data: profileData, error: profileError } = await supabase
+    // 1) Load profile name
+    const { data: profile } = await supabase
       .from('profiles')
       .select('full_name')
-      .eq('user_id', userId)
+      .eq('user_id', user.id)
       .single()
+    setFullName(profile?.full_name || user.email)
 
-    if (profileError) {
-      console.warn('No profile found:', profileError.message)
-      setFullName(currentUser.email)
-    } else {
-      setFullName(profileData.full_name || currentUser.email)
-    }
-
-    // — fetch total workout count —
-    const { count, error: countError } = await supabase
+    // 2) Count entries
+    const { count } = await supabase
       .from('entries')
       .select('id', { count: 'exact', head: true })
-      .eq('user_id', userId)
+      .eq('user_id', user.id)
+    setEntryCount(count || 0)
 
-    if (countError) {
-      console.error('Error counting entries:', countError)
-    } else {
-      setEntryCount(count)
-    }
-
-    // — fetch 5 most recent entries —
-    const { data: entriesData, error: entriesError } = await supabase
+    // 3) Load recent 5 entries
+    const { data: entries } = await supabase
       .from('entries')
-      .select('*')
-      .eq('user_id', userId)
+      .select('id,date,type,exercises,segments')
+      .eq('user_id', user.id)
       .order('date', { ascending: false })
       .limit(5)
+    setRecentEntries(entries || [])
 
-    if (entriesError) {
-      console.error('Error loading recent entries:', entriesError)
-    } else {
-      setRecentEntries(entriesData || [])
+    // 4) Build last-7-days chart data
+    const weekArr = []
+    for (let daysAgo = 6; daysAgo >= 0; daysAgo--) {
+      const d = new Date()
+      d.setDate(d.getDate() - daysAgo)
+      weekArr.push({
+        day: d.toLocaleDateString('en-GB', { weekday: 'short' }),
+        count: 0,
+      })
     }
+    ;(entries || []).forEach((e) => {
+      const label = new Date(e.date).toLocaleDateString('en-GB', {
+        weekday: 'short',
+      })
+      const slot = weekArr.find((w) => w.day === label)
+      if (slot) slot.count += 1
+    })
+    setChartData(weekArr)
 
     setLoading(false)
   }
 
+  // While loading or waiting on auth, show nothing (or a spinner)
+  if (loading || user === undefined) {
+    return (
+      <main className="p-6 bg-neutral-light min-h-screen flex items-center justify-center">
+        <p className="text-gray-500">Loading...</p>
+      </main>
+    )
+  }
+
   return (
-    <main className="p-6">
-      {/* ——— Branding ——— */}
-      <div className="mb-6 flex items-center">
-        <div className="text-4xl font-extrabold text-purple-600">
-          FitFlow
+    <main className="p-6 bg-neutral-light min-h-screen">
+      {/* Branding */}
+      <div className="mb-6">
+        <h1 className="text-4xl font-extrabold text-purple-600">FitFlow</h1>
+      </div>
+
+      {/* Welcome */}
+      <h2 className="text-3xl font-bold mb-6">Welcome, {fullName}!</h2>
+
+      {/* Stats */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
+        <StatCard
+          title="Workouts Logged"
+          value={entryCount}
+          bg="from-purple-500 to-indigo-500"
+        />
+        <StatCard
+          title="Exercises Completed"
+          value={recentEntries.reduce(
+            (sum, e) => sum + (e.exercises?.length || 0),
+            0
+          )}
+          bg="from-green-500 to-teal-500"
+        />
+        <StatCard
+          title="Latest Workout"
+          value={
+            recentEntries[0]
+              ? new Date(recentEntries[0].date).toLocaleDateString('en-GB')
+              : '—'
+          }
+          bg="from-yellow-500 to-orange-500"
+        />
+      </div>
+
+      {/* Chart */}
+      <div className="bg-white rounded-2xl p-6 shadow mb-8">
+        <h3 className="text-lg font-medium mb-4">Workouts This Week</h3>
+        <div className="h-48">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={chartData}>
+              <XAxis dataKey="day" />
+              <YAxis allowDecimals={false} />
+              <Tooltip />
+              <Line
+                type="monotone"
+                dataKey="count"
+                stroke="#7F00FF"
+                strokeWidth={2}
+              />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
       </div>
 
-      {/* ——— Welcome ——— */}
-      <h1 className="text-3xl font-bold mb-6">
-        Welcome, {fullName}!
-      </h1>
-
-      {loading ? (
-        <p>Loading your dashboard…</p>
-      ) : (
-        <>
-          {/* ——— Stats Cards ——— */}
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
-            <StatCard
-              title="Workouts Logged"
-              value={entryCount}
-              bg="from-purple-500 to-indigo-500"
-            />
-            <StatCard
-              title="Exercises Completed"
-              value={recentEntries.reduce(
-                (sum, e) => sum + (e.exercises?.length || 0),
-                0
-              )}
-              bg="from-green-500 to-teal-500"
-            />
-            <StatCard
-              title="Latest Workout"
-              value={
-                recentEntries[0]
-                  ? new Date(
-                      recentEntries[0].date
-                    ).toLocaleDateString('en-GB')
-                  : '—'
-              }
-              bg="from-yellow-500 to-orange-500"
-            />
-          </div>
-
-          {/* ——— Recent Entries List ——— */}
-          <section>
-            <h2 className="text-2xl font-semibold mb-4">
-              Recent Workouts
-            </h2>
-            {recentEntries.length === 0 ? (
-              <p className="text-gray-600">
-                You haven’t logged any workouts yet.
-                <br />
-                Head over to Log to get started!
-              </p>
-            ) : (
-              <ul className="space-y-4">
-                {recentEntries.map((entry) => (
-                  <li
-                    key={entry.id}
-                    className="border rounded-lg p-4 shadow-sm"
-                  >
-                    <div className="flex justify-between mb-2">
-                      <span className="font-medium">
-                        {new Date(
-                          entry.date
-                        ).toLocaleDateString('en-GB')}
-                      </span>
-                      <span className="text-sm text-gray-600">
-                        {entry.type}
-                      </span>
-                    </div>
-                    <ul className="list-disc ml-5">
-                      {entry.exercises.map((ex, i) => (
-                        <li key={i}>
-                          <span className="font-medium">
-                            {ex.name}
-                          </span>
-                          {`: ${ex.sets}×${ex.reps}`}
-                          {ex.weight
-                            ? ` @ ${ex.weight}kg`
-                            : ''}
-                        </li>
-                      ))}
-                    </ul>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        </>
-      )}
+      {/* Floating Log Button */}
+      <button
+        aria-label="Log Workout"
+        onClick={() => navigate('/log')}
+        className="fixed bottom-24 right-6 bg-accent-orange text-white p-4 rounded-full shadow-lg hover:scale-105 transition"
+      >
+        <PlusIcon className="h-6 w-6" />
+      </button>
     </main>
   )
 }
 
-// ——— Simple StatCard Component ———
 function StatCard({ title, value, bg }) {
   return (
     <div
       className={`bg-gradient-to-r ${bg} text-white p-6 rounded-lg shadow-md`}
     >
-      <h3 className="text-sm uppercase tracking-wide">
-        {title}
-      </h3>
+      <h4 className="text-sm uppercase tracking-wide">{title}</h4>
       <p className="text-4xl font-bold mt-2">{value}</p>
     </div>
   )

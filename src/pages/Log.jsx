@@ -1,186 +1,108 @@
 // src/pages/Log.jsx
 import React, { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { Tab } from '@headlessui/react'
 import { supabase } from '../lib/supabaseClient'
 
+const categories = ['Run', 'Gym', 'Swim', 'Cycle', 'Other']
+
 export default function Log() {
-  const navigate = useNavigate()
-  const { state } = useLocation()
-  const entryToEdit = state?.entry
+  const navigate      = useNavigate()
+  const { state }     = useLocation()
+  const entryToEdit   = state?.entry
 
-  // Helpers for date formatting
-  const formatDisplay = (iso) =>
-    new Date(iso).toLocaleDateString('en-GB')
-  const formatISO = (display) => {
-    const [d, m, y] = display.split('/')
-    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`
-  }
-
-  // --- form state ---
+  // Common form state
   const [displayDate, setDisplayDate] = useState(
-    formatDisplay(new Date().toISOString().slice(0, 10))
+    new Date().toLocaleDateString('en-GB')
   )
-  const [activityType, setActivityType] = useState('Run')
+  const [activityType, setActivityType] = useState(entryToEdit?.type || 'Run')
+  const [notes, setNotes] = useState(entryToEdit?.notes || '')
+  const [loading, setLoading] = useState(false)
 
-  // Gym-specific: start blank
-  const [exercises, setExercises] = useState([
-    { name: '', sets: '', reps: '', weight: '' },
-  ])
-
-  // names for dropdown
+  // Gym-specific
+  const [exercises, setExercises] = useState(
+    entryToEdit?.exercises?.map(e => ({
+      name: e.name, sets: e.sets, reps: e.reps, weight: e.weight || ''
+    })) || [{ name:'', sets:'', reps:'', weight:'' }]
+  )
   const [exerciseNames, setExerciseNames] = useState([])
 
-  // Run/Cycle-specific
+  // Segment-specific
   const [distance, setDistance] = useState('')
   const [duration, setDuration] = useState('')
-
-  // Swim-specific
   const [laps, setLaps] = useState('')
   const [time, setTime] = useState('')
 
-  const [notes, setNotes] = useState('')
-  const [loading, setLoading] = useState(false)
-
-  // Load past exercise names once
+  // Load known exercise names
   useEffect(() => {
-    async function loadNames() {
-      const { data: { user } = {}, error: userErr } = await supabase.auth.getUser()
-      if (userErr || !user) return
-      const { data: past, error } = await supabase
+    ;(async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data: past } = await supabase
         .from('entries')
         .select('exercises')
         .eq('user_id', user.id)
         .eq('type', 'Gym')
-      if (error) {
-        console.error('Error loading exercise names:', error)
-        return
-      }
       const names = new Set()
-      ;(past || []).forEach((entry) =>
-        entry.exercises.forEach((e) => {
-          if (e.name) names.add(e.name)
-        })
-      )
+      past?.forEach(e => e.exercises.forEach(x => x.name && names.add(x.name)))
       setExerciseNames([...names])
-    }
-    loadNames()
+    })()
   }, [])
 
-  // If editing, preload form values
-  useEffect(() => {
-    if (!entryToEdit) return
-
-    setDisplayDate(formatDisplay(entryToEdit.date))
-    setActivityType(entryToEdit.type)
-    setNotes(entryToEdit.notes || '')
-
-    if (entryToEdit.type === 'Gym') {
-      setExercises(
-        entryToEdit.exercises.map((e) => ({
-          name: e.name,
-          sets: e.sets,
-          reps: e.reps,
-          weight: e.weight ?? '',
-        }))
-      )
-      setDistance('')
-      setDuration('')
-      setLaps('')
-      setTime('')
-    } else {
-      const seg = entryToEdit.segments?.[0] || {}
-      if (entryToEdit.type === 'Swim') {
-        setLaps(seg.laps || '')
-        setTime(seg.time || '')
-      } else {
-        setDistance(seg.distance || '')
-        setDuration(seg.duration || '')
-      }
-      setExercises([{ name: '', sets: '', reps: '', weight: '' }])
-    }
-  }, [entryToEdit])
-
-  // Update one field in the exercises array
-  const handleExerciseChange = (idx, field, value) => {
-    const arr = exercises.slice()
-    arr[idx] = { ...arr[idx], [field]: value }
-    setExercises(arr)
-  }
-
-  // Add a new blank exercise row
-  const addExercise = () => {
-    setExercises([
-      ...exercises,
-      { name: '', sets: '', reps: '', weight: '' },
-    ])
-  }
-
-  // Remove an exercise row
-  const removeExercise = (idx) => {
-    setExercises(exercises.filter((_, i) => i !== idx))
-  }
-
-  // When the user leaves the name field, look up their last sets/reps/weight
-  const handleNameBlur = async (idx) => {
-    const exName = exercises[idx].name.trim()
-    if (!exName) return
-
-    const { data: { user } = {} } = await supabase.auth.getUser()
-    if (!user) return
-
-    const { data: entries } = await supabase
+  // Handle name blur to autofill
+  async function handleNameBlur(idx) {
+    const name = exercises[idx].name.trim()
+    if (!name) return
+    const { data: { user } } = await supabase.auth.getUser()
+    const { data: past } = await supabase
       .from('entries')
       .select('exercises')
       .eq('user_id', user.id)
       .eq('type', 'Gym')
       .order('date', { ascending: false })
       .limit(20)
-
-    for (const entry of entries || []) {
-      const match = entry.exercises.find((e) => e.name === exName)
+    for (const entry of past || []) {
+      const match = entry.exercises.find(e => e.name === name)
       if (match) {
-        const updated = exercises.slice()
-        updated[idx] = {
-          name: exName,
-          sets: match.sets,
-          reps: match.reps,
-          weight: match.weight ?? '',
-        }
-        setExercises(updated)
+        const copy = [...exercises]
+        copy[idx] = { ...match }
+        setExercises(copy)
         break
       }
     }
   }
 
-  // Save or update the entry
-  const handleSubmit = async (e) => {
+  // Add/remove exercise rows
+  const addExercise = () => setExercises([...exercises, {name:'',sets:'',reps:'',weight:''}])
+  const removeExercise = idx => setExercises(exercises.filter((_,i)=>i!==idx))
+
+  // Save
+  const handleSubmit = async e => {
     e.preventDefault()
     setLoading(true)
 
-    const { data: { user } = {} } = await supabase.auth.getUser()
+    const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
-      alert('You must be signed in to save logs.')
+      alert('Please sign in')
       setLoading(false)
       return
     }
 
-    const isoDate = formatISO(displayDate)
+    const dateISO = displayDate.split('/').reverse().join('-')
     const payload = {
       user_id: user.id,
-      date: isoDate,
+      date: dateISO,
       type: activityType,
-      notes,
+      notes
     }
-
     if (activityType === 'Gym') {
       payload.exercises = exercises
       payload.segments = []
     } else {
       payload.exercises = []
-      payload.segments =
-        activityType === 'Swim'
-          ? [{ laps, time }]
-          : [{ distance, duration }]
+      payload.segments = activityType === 'Swim'
+        ? [{ laps, time }]
+        : [{ distance, duration }]
     }
 
     const res = entryToEdit
@@ -189,50 +111,45 @@ export default function Log() {
 
     setLoading(false)
     if (res.error) {
-      alert(
-        `${entryToEdit ? 'Could not update' : 'Could not save'} entry:\n${
-          res.error.message
-        }`
-      )
+      alert(`Error: ${res.error.message}`)
     } else {
       navigate('/history', { replace: true })
     }
   }
 
   return (
-    <main className="p-6">
+    <main className="p-6 bg-neutral-light min-h-screen">
       <h1 className="text-2xl font-bold mb-4">
-        {entryToEdit ? 'Edit' : 'Log'} Activity
+        {entryToEdit ? 'Edit Activity' : 'Log Activity'}
       </h1>
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-6 bg-white p-6 rounded-2xl shadow-md">
         {/* Date */}
         <div>
           <label className="block font-medium">Date</label>
           <input
             type="text"
             value={displayDate}
-            onChange={(e) => setDisplayDate(e.target.value)}
-            className="mt-1 w-full border rounded px-3 py-2 bg-gray-100"
+            onChange={e => setDisplayDate(e.target.value)}
+            className="mt-1 w-full border rounded px-3 py-2"
             required
           />
         </div>
 
-        {/* Activity selector */}
+        {/* Activity */}
         <div>
           <label className="block font-medium">Activity</label>
           <select
             value={activityType}
-            onChange={(e) => setActivityType(e.target.value)}
+            onChange={e => setActivityType(e.target.value)}
             className="mt-1 w-full border rounded px-3 py-2"
           >
-            <option value="Run">🏃 Run</option>
-            <option value="Gym">🏋️ Gym</option>
-            <option value="Swim">🏊 Swim</option>
-            <option value="Cycle">🚴 Cycle</option>
+            {categories.map(cat => (
+              <option key={cat} value={cat}>{cat}</option>
+            ))}
           </select>
         </div>
 
-        {/* Gym form */}
+        {/* Conditional Forms */}
         {activityType === 'Gym' && (
           <>
             {exercises.map((ex, idx) => (
@@ -242,77 +159,60 @@ export default function Log() {
                     type="button"
                     onClick={() => removeExercise(idx)}
                     className="absolute top-2 right-2 text-red-500"
-                    aria-label="Remove exercise"
-                  >
-                    ✕
-                  </button>
+                  >✕</button>
                 )}
                 <h2 className="font-medium">Exercise #{idx + 1}</h2>
-
-                {/* Name + dropdown */}
-                <div>
-                  <label className="block">Name</label>
+                <input
+                  type="text"
+                  list="exercise-names"
+                  value={ex.name}
+                  onChange={e => {
+                    const copy = [...exercises]; copy[idx].name = e.target.value; setExercises(copy)
+                  }}
+                  onBlur={() => handleNameBlur(idx)}
+                  placeholder="Name"
+                  className="w-full border rounded px-3 py-2"
+                  required
+                />
+                <datalist id="exercise-names">
+                  {exerciseNames.map(n => <option key={n} value={n} />)}
+                </datalist>
+                <div className="grid grid-cols-3 gap-2">
                   <input
-                    type="text"
-                    list="exercise-names"
-                    value={ex.name}
-                    onBlur={() => handleNameBlur(idx)}
-                    onChange={(e) => handleExerciseChange(idx, 'name', e.target.value)}
-                    className="mt-1 w-full border rounded px-3 py-2"
-                    required
+                    type="number" placeholder="Sets"
+                    value={ex.sets}
+                    onChange={e => {
+                      const copy = [...exercises]; copy[idx].sets = e.target.value; setExercises(copy)
+                    }}
+                    className="border rounded px-2 py-1"
                   />
-                  <datalist id="exercise-names">
-                    {exerciseNames.map((n) => (
-                      <option key={n} value={n} />
-                    ))}
-                  </datalist>
-                </div>
-
-                {/* Sets / Reps / Weight */}
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="block">Sets</label>
-                    <input
-                      type="number"
-                      value={ex.sets}
-                      onChange={(e) => handleExerciseChange(idx, 'sets', e.target.value)}
-                      className="mt-1 w-full border rounded px-3 py-2"
-                      min="1"
-                      placeholder="e.g. 3"
-                    />
-                  </div>
-                  <div>
-                    <label className="block">Reps</label>
-                    <input
-                      type="number"
-                      value={ex.reps}
-                      onChange={(e) => handleExerciseChange(idx, 'reps', e.target.value)}
-                      className="mt-1 w-full border rounded px-3 py-2"
-                      min="1"
-                      placeholder="e.g. 8"
-                    />
-                  </div>
-                  <div>
-                    <label className="block">Weight (kg)</label>
-                    <input
-                      type="number"
-                      value={ex.weight}
-                      onChange={(e) => handleExerciseChange(idx, 'weight', e.target.value)}
-                      className="mt-1 w-full border rounded px-3 py-2"
-                      min="0"
-                      placeholder="e.g. 20"
-                    />
-                  </div>
+                  <input
+                    type="number" placeholder="Reps"
+                    value={ex.reps}
+                    onChange={e => {
+                      const copy = [...exercises]; copy[idx].reps = e.target.value; setExercises(copy)
+                    }}
+                    className="border rounded px-2 py-1"
+                  />
+                  <input
+                    type="number" placeholder="Weight kg"
+                    value={ex.weight}
+                    onChange={e => {
+                      const copy = [...exercises]; copy[idx].weight = e.target.value; setExercises(copy)
+                    }}
+                    className="border rounded px-2 py-1"
+                  />
                 </div>
               </div>
             ))}
-            <button type="button" onClick={addExercise} className="text-blue-600 hover:underline">
-              + Add Exercise
-            </button>
+            <button
+              type="button"
+              onClick={addExercise}
+              className="text-blue-600 hover:underline"
+            >+ Add Exercise</button>
           </>
         )}
 
-        {/* Run/Cycle form */}
         {activityType !== 'Gym' && activityType !== 'Swim' && (
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -320,7 +220,7 @@ export default function Log() {
               <input
                 type="text"
                 value={distance}
-                onChange={(e) => setDistance(e.target.value)}
+                onChange={e => setDistance(e.target.value)}
                 className="mt-1 w-full border rounded px-3 py-2"
                 placeholder="e.g. 5 km"
                 required
@@ -331,7 +231,7 @@ export default function Log() {
               <input
                 type="text"
                 value={duration}
-                onChange={(e) => setDuration(e.target.value)}
+                onChange={e => setDuration(e.target.value)}
                 className="mt-1 w-full border rounded px-3 py-2"
                 placeholder="e.g. 30 min"
                 required
@@ -340,7 +240,6 @@ export default function Log() {
           </div>
         )}
 
-        {/* Swim form */}
         {activityType === 'Swim' && (
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -348,10 +247,9 @@ export default function Log() {
               <input
                 type="number"
                 value={laps}
-                onChange={(e) => setLaps(e.target.value)}
+                onChange={e => setLaps(e.target.value)}
                 className="mt-1 w-full border rounded px-3 py-2"
                 placeholder="e.g. 20"
-                min="1"
                 required
               />
             </div>
@@ -360,7 +258,7 @@ export default function Log() {
               <input
                 type="text"
                 value={time}
-                onChange={(e) => setTime(e.target.value)}
+                onChange={e => setTime(e.target.value)}
                 className="mt-1 w-full border rounded px-3 py-2"
                 placeholder="e.g. 45 min"
                 required
@@ -374,7 +272,7 @@ export default function Log() {
           <label className="block font-medium">Notes</label>
           <textarea
             value={notes}
-            onChange={(e) => setNotes(e.target.value)}
+            onChange={e => setNotes(e.target.value)}
             className="mt-1 w-full border rounded px-3 py-2 h-24"
           />
         </div>
