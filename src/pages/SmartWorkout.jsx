@@ -165,28 +165,30 @@ Each element in "plan" must be an object with:
     localStorage.setItem('smartSchedule', JSON.stringify(updated))
   }
 
+  // safe parser to avoid undefined
+  const parseExercise = (str) => {
+    const [name, rest = ''] = str.split(':')
+    const sets = rest.match(/(\d+)×/)?.[1] || ''
+    const reps = rest.match(/×(\d+)/)?.[1] || ''
+    return { name: name.trim(), sets, reps, weight: '' }
+  }
+
   // import helpers
   function importToLog(day, exercise = null) {
     const entry = {
       date: day.date,
       type: day.mainSet && day.mainSet.length ? 'Gym' : 'Run',
-      notes: exercise || day.mainSet.join(', '),
+      notes: exercise || (day.mainSet || []).join(', '),
       exercises: [],
       segments: [],
     }
+
     if (exercise) {
-      const [name, rest] = exercise.split(':')
-      const sets = rest.match(/(\d+)×/)?.[1] || ''
-      const reps = rest.match(/×(\d+)/)?.[1] || ''
-      entry.exercises = [{ name: name.trim(), sets, reps, weight: '' }]
+      entry.exercises = [parseExercise(exercise)]
     } else {
-      entry.exercises = (day.mainSet || []).map((s) => {
-        const [name, rest] = s.split(':')
-        const sets = rest.match(/(\d+)×/)?.[1] || ''
-        const reps = rest.match(/×(\d+)/)?.[1] || ''
-        return { name: name.trim(), sets, reps, weight: '' }
-      })
+      entry.exercises = (day.mainSet || []).map(parseExercise)
     }
+
     navigate('/log', { state: { entry } })
   }
 
@@ -259,7 +261,9 @@ Each element in "plan" must be an object with:
                     {(workout[section] || []).map((s, i) => (
                       <li
                         key={i}
-                        className={section === 'mainSet' ? 'flex justify-between' : ''}
+                        className={
+                          section === 'mainSet' ? 'flex justify-between' : ''
+                        }
                       >
                         <span>{s}</span>
                         {section === 'mainSet' && (
@@ -338,9 +342,7 @@ Each element in "plan" must be an object with:
                 {schedule.map((day, i) => (
                   <div
                     key={i}
-                    className={`p-4 bg-gray-50 rounded ${
-                      day.done ? 'opacity-50' : ''
-                    }`}
+                    className={`p-4 bg-gray-50 rounded ${day.done ? 'opacity-50' : ''}`}
                   >
                     <div className="flex justify-between items-center mb-2">
                       <div className="font-medium text-lg">
@@ -374,7 +376,9 @@ Each element in "plan" must be an object with:
                           {(day[sec] || []).map((item, j) => (
                             <li
                               key={j}
-                              className={sec === 'mainSet' ? 'flex justify-between' : ''}
+                              className={
+                                sec === 'mainSet' ? 'flex justify-between' : ''
+                              }
                             >
                               <span>{item}</span>
                               {sec === 'mainSet' && (
