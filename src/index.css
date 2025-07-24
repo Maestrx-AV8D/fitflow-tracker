@@ -1,3 +1,64 @@
+/* index.css */
+
+@import url("https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* CSS vars for your custom fonts + color-scheme hint */
+:root {
+  --font-sora: "Sora", sans-serif;
+  --font-code: "Source Code Pro", monospace;
+  --font-grotesk: "Space Grotesk", sans-serif;
+  color-scheme: light dark; /* support both */
+}
+
+/* Smooth scrolling everywhere */
+* {
+  scroll-behavior: smooth;
+}
+
+/* Light mode defaults */
+html {
+  @apply bg-n-1 text-n-8;
+}
+
+/* Dark mode overrides */
+html.dark {
+  @apply bg-n-8 text-n-1;
+}
+
+/* Base element styles */
+@layer base {
+  body {
+    @apply font-sans bg-transparent;
+  }
+}
+
+/* Extra utilities for rotations */
+.rotate-45    { @apply rotate-[45deg]; }
+.rotate-90    { @apply rotate-[90deg]; }
+.rotate-135   { @apply rotate-[135deg]; }
+.rotate-180   { @apply rotate-[180deg]; }
+.rotate-225   { @apply rotate-[225deg]; }
+.rotate-270   { @apply rotate-[270deg]; }
+.rotate-315   { @apply rotate-[315deg]; }
+.rotate-360   { @apply rotate-[360deg]; }
+.-rotate-45   { @apply -rotate-[45deg]; }
+.-rotate-90   { @apply -rotate-[90deg]; }
+.-rotate-135  { @apply -rotate-[135deg]; }
+.-rotate-180  { @apply -rotate-[180deg]; }
+.-rotate-225  { @apply -rotate-[225deg]; }
+.-rotate-270  { @apply -rotate-[270deg]; }
+.-rotate-315  { @apply -rotate-[315deg]; }
+.-rotate-360  { @apply -rotate-[360deg]; }
+
+/* Ensure our sliding sidebar sits above everything */
+@layer utilities {
+  .z-sidebar {
+    z-index: 30 !important;
+  }
+}

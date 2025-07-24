@@ -23,25 +23,17 @@ export default function Schedule() {
 
   // mark complete
   function completeDay(idx) {
-    const updated = plan.map((d, i) =>
-      i === idx ? { ...d, done: true } : d
-    )
-    persist(updated)
+    persist(plan.map((d, i) => (i === idx ? { ...d, done: true } : d)))
   }
 
   // remove a single day
   function removeDay(idx) {
-    const updated = plan.filter((_, i) => i !== idx)
-    persist(updated)
+    persist(plan.filter((_, i) => i !== idx))
   }
 
   // clear entire schedule
   function clearAll() {
-    if (
-      window.confirm(
-        'This will remove your entire schedule. Are you sure?'
-      )
-    ) {
+    if (window.confirm('This will remove your entire schedule. Are you sure?')) {
       persist([])
     }
   }
@@ -50,8 +42,7 @@ export default function Schedule() {
   function importToLog(day, exercise = null) {
     const entry = {
       date: day.date,
-      type:
-        day.mainSet && day.mainSet.length ? 'Gym' : 'Run',
+      type: day.mainSet?.length ? 'Gym' : 'Run',
       notes: exercise || day.mainSet.join(', '),
       exercises: [],
       segments: [],
@@ -60,9 +51,7 @@ export default function Schedule() {
       const [name, rest] = exercise.split(':')
       const sets = rest.match(/(\d+)×/)?.[1] || ''
       const reps = rest.match(/×(\d+)/)?.[1] || ''
-      entry.exercises = [
-        { name: name.trim(), sets, reps, weight: '' },
-      ]
+      entry.exercises = [{ name: name.trim(), sets, reps, weight: '' }]
     } else {
       entry.exercises = (day.mainSet || []).map(s => {
         const [name, rest] = s.split(':')
@@ -74,19 +63,16 @@ export default function Schedule() {
     navigate('/log', { state: { entry } })
   }
 
-  // toggle hiding completed
-  const filteredPlan = plan.filter(d =>
-    showCompleted ? true : !d.done
-  )
+  const filteredPlan = plan.filter(d => (showCompleted ? true : !d.done))
 
   return (
-    <main className="p-6 bg-neutral-light min-h-screen">
+    <main className="p-6 bg-n-8 min-h-screen">
       <header className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold">📅 Your Schedule</h1>
+        <h1 className="text-2xl font-bold text-n-1">📅 Your Schedule</h1>
         <div className="flex items-center space-x-3">
           <button
             onClick={() => setShowCompleted(s => !s)}
-            className="text-sm text-gray-600 hover:underline"
+            className="text-sm text-n-4 hover:underline"
           >
             {showCompleted ? 'Hide' : 'Show'} Completed
           </button>
@@ -102,56 +88,45 @@ export default function Schedule() {
       </header>
 
       {plan.length === 0 ? (
-        <p className="text-gray-600">
-          No schedule available. Generate one in Coach.
-        </p>
+        <p className="text-n-5">No schedule available. Generate one in Coach.</p>
       ) : (
         <>
-          <p className="text-sm text-gray-500 mb-2">
+          <p className="text-sm text-n-5 mb-2">
             Showing {filteredPlan.length} of {plan.length} days
           </p>
           <div className="space-y-4">
             {filteredPlan.map((day, i) => {
-              // map index back to original plan index
-              const originalIdx = plan.findIndex(
-                d => d.date === day.date
-              )
+              const originalIdx = plan.findIndex(d => d.date === day.date)
               return (
                 <div
                   key={day.date}
-                  className={`p-4 bg-white rounded shadow flex flex-col ${
+                  className={`p-4 bg-n-7 rounded-2xl shadow-md flex flex-col ${
                     day.done ? 'opacity-50' : ''
                   }`}
                 >
                   <div className="flex justify-between items-center mb-2">
-                    <div className="font-medium">
+                    <div className="font-medium text-n-1">
                       {format(parseISO(day.date), 'dd/MM/yy')}
                     </div>
                     <div className="flex items-center space-x-2">
                       {!day.done && (
                         <button
-                          onClick={() =>
-                            completeDay(originalIdx)
-                          }
-                          className="text-green-600 hover:underline text-sm"
+                          onClick={() => completeDay(originalIdx)}
+                          className="text-green-400 hover:underline text-sm"
                         >
                           Complete
                         </button>
                       )}
                       {day.mainSet?.length > 0 && (
                         <button
-                          onClick={() =>
-                            importToLog(day)
-                          }
-                          className="text-purple-600 hover:underline text-sm"
+                          onClick={() => importToLog(day)}
+                          className="text-purple-400 hover:underline text-sm"
                         >
                           Import
                         </button>
                       )}
                       <button
-                        onClick={() =>
-                          removeDay(originalIdx)
-                        }
+                        onClick={() => removeDay(originalIdx)}
                         className="p-1 text-red-500 hover:text-red-700"
                       >
                         <TrashIcon className="h-5 w-5" />
@@ -159,54 +134,41 @@ export default function Schedule() {
                     </div>
                   </div>
 
-                  {['warmUp', 'mainSet', 'coolDown'].map(
-                    sec => (
-                      <div key={sec} className="mb-2">
-                        <h4 className="font-semibold">
-                          {sec === 'warmUp'
-                            ? 'Warm-Up'
-                            : sec === 'mainSet'
-                            ? 'Main Set'
-                            : 'Cool-Down'}
-                        </h4>
-                        <ul
-                          className={
-                            sec === 'mainSet'
-                              ? 'space-y-1'
-                              : 'list-disc list-inside'
-                          }
-                        >
-                          {(day[sec] || []).map(
-                            (item, j) => (
-                              <li
-                                key={j}
-                                className={
-                                  sec === 'mainSet'
-                                    ? 'flex justify-between'
-                                    : ''
-                                }
+                  {['warmUp', 'mainSet', 'coolDown'].map(sec => (
+                    <div key={sec} className="mb-2">
+                      <h4 className="font-semibold text-n-2">
+                        {sec === 'warmUp'
+                          ? 'Warm-Up'
+                          : sec === 'mainSet'
+                          ? 'Main Set'
+                          : 'Cool-Down'}
+                      </h4>
+                      <ul
+                        className={
+                          sec === 'mainSet'
+                            ? 'space-y-1'
+                            : 'list-disc list-inside text-n-3'
+                        }
+                      >
+                        {(day[sec] || []).map((item, j) => (
+                          <li
+                            key={j}
+                            className={sec === 'mainSet' ? 'flex justify-between' : ''}
+                          >
+                            <span className="text-n-1">{item}</span>
+                            {sec === 'mainSet' && (
+                              <button
+                                onClick={() => importToLog(day, item)}
+                                className="text-purple-400 hover:underline text-sm"
                               >
-                                <span>{item}</span>
-                                {sec === 'mainSet' && (
-                                  <button
-                                    onClick={() =>
-                                      importToLog(
-                                        day,
-                                        item
-                                      )
-                                    }
-                                    className="text-purple-600 hover:underline text-sm"
-                                  >
-                                    Import
-                                  </button>
-                                )}
-                              </li>
-                            )
-                          )}
-                        </ul>
-                      </div>
-                    )
-                  )}
+                                Import
+                              </button>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
                 </div>
               )
             })}

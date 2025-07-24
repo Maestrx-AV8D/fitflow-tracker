@@ -66,7 +66,7 @@ export default function SmartWorkout() {
 
   function scheduleSystem() {
     let base = `
-You’re a certified fitness coach. Return JSON { "plan": [ ... ] }, each element:
+You’re a certified fitness coach. Return JSON { "plan": [ … ] }, each element:
   - date: YYYY-MM-DD
   - warmUp: [strings]
   - mainSet: [ "Exercise: sets×reps" ]
@@ -112,11 +112,11 @@ Otherwise respond with the full meal plan and ingredients as above.
     return base
   }
 
-  //––––– workout handlers –––––//
+  //––––– handlers –––––//
 
   async function handleWorkoutSubmit(e) {
     e.preventDefault()
-    if (!workoutPrompt) return
+    if (!workoutPrompt.trim()) return
     setWrkLoading(true); setWrkError(''); setWorkout(null)
     try {
       const res = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -146,11 +146,9 @@ Otherwise respond with the full meal plan and ingredients as above.
     }
   }
 
-  //––––– schedule handlers –––––//
-
   async function handleScheduleSubmit(e) {
     e.preventDefault()
-    if (!schedPrompt) return
+    if (!schedPrompt.trim()) return
     setSchLoading(true); setSchError(''); setSchedule([])
     try {
       const res = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -180,15 +178,10 @@ Otherwise respond with the full meal plan and ingredients as above.
     }
   }
 
-  //––––– nutrition handlers –––––//
-
   async function handleMealSubmit(e) {
     e.preventDefault()
-    if (!mealPrompt) return
-    setMealLoading(true)
-    setMealError('')
-    setNutritionPlan(null)
-    setMealAnswer('')
+    if (!mealPrompt.trim()) return
+    setMealLoading(true); setMealError(''); setNutritionPlan(null); setMealAnswer('')
     try {
       const res = await fetch('https://api.openai.com/v1/chat/completions', {
         method:'POST',
@@ -223,46 +216,32 @@ Otherwise respond with the full meal plan and ingredients as above.
     }
   }
 
-  //––––– common helpers –––––//
+  //––––– helpers –––––//
 
   const parseExercise = str => {
     const [name, rest=''] = str.split(':')
     const sets = rest.match(/(\d+)×/)?.[1]||''
     const reps = rest.match(/×(\d+)/)?.[1]||''
-    return { name: name.trim(), sets, reps, weight: '' }
+    return { name:name.trim(), sets, reps, weight:'' }
   }
 
   function importToLog(day, exercise=null) {
     const entry = {
       date: day.date,
       type: day.mainSet?.length ? 'Gym' : 'Run',
-      notes: exercise || day.mainSet?.join(', '),
-      exercises: exercise
-        ? [parseExercise(exercise)]
-        : (day.mainSet || []).map(parseExercise),
+      notes: exercise|| day.mainSet?.join(', '),
+      exercises: exercise ? [parseExercise(exercise)] : (day.mainSet||[]).map(parseExercise),
       segments: [],
     }
-    navigate('/log', { state: { entry } })
+    navigate('/log', { state:{ entry } })
   }
 
-  function toggleComplete(i) {
-    const updated = schedule.map((d, idx) =>
-      idx === i ? { ...d, done: !d.done } : d
+  function completeDay(idx) {
+    const updated = schedule.map((d,i)=>
+      i===idx ? { ...d, done: !d.done } : d
     )
     setSchedule(updated)
     localStorage.setItem('smartSchedule', JSON.stringify(updated))
-  }
-
-  function importWholeWorkout() {
-    // import full quick workout
-    const entry = {
-      date: format(new Date(), 'yyyy-MM-dd'),
-      type: workout.mainSet && workout.mainSet.length ? 'Gym' : 'Run',
-      notes: workout.mainSet ? workout.mainSet.join(', ') : '',
-      exercises: (workout.mainSet || []).map(parseExercise),
-      segments: [],
-    }
-    navigate('/log', { state: { entry } })
   }
 
   function viewFullSchedule() {
@@ -272,37 +251,36 @@ Otherwise respond with the full meal plan and ingredients as above.
   //––––– render –––––//
 
   return (
-    <main className="p-6 bg-neutral-light min-h-screen space-y-6">
+    <main className="p-6 bg-neutral-light dark:bg-n-8 min-h-screen space-y-6">
 
       {/* Tab Toggle */}
       <div className="flex space-x-4 mb-4">
-        {['workout','schedule','nutrition'].map(tab => (
+        {['workout','schedule','nutrition'].map(tab=>(
           <button key={tab}
-            onClick={() => setView(tab)}
+            onClick={()=>setView(tab)}
             className={`px-4 py-2 rounded ${
-              view === tab ? 'bg-blue-600 text-white' : 'bg-gray-200'
+              view===tab
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-200 dark:bg-n-6 dark:text-n-3'
             }`}
           >
-            {tab === 'workout'
-              ? 'Quick Workout'
-              : tab === 'schedule'
-              ? 'Schedule Planner'
-              : 'Nutrition'}
+            {tab==='workout'?'Quick Workout':tab==='schedule'?'Schedule Planner':'Nutrition'}
           </button>
         ))}
       </div>
 
       {/* Quick Workout */}
-      {view === 'workout' && (
-        <section className="bg-white p-6 rounded-2xl shadow space-y-4">
+      {view==='workout' && (
+        <section className="bg-n-7 text-n-2 p-6 rounded-2xl shadow space-y-4">
           <h2 className="text-2xl font-bold">🏋️ Quick Workout</h2>
           <form onSubmit={handleWorkoutSubmit} className="flex">
             <input
               type="text"
-              className="flex-1 border rounded-l px-3 py-2"
+              className="flex-1 border border-n-4 bg-n-1 text-n-2 placeholder:text-n-4 rounded-l px-3 py-2
+                         dark:bg-n-7 dark:border-n-6"
               placeholder="e.g. 30 min full-body"
               value={workoutPrompt}
-              onChange={e => setWorkoutPrompt(e.target.value)}
+              onChange={e=>setWorkoutPrompt(e.target.value)}
               disabled={wrkLoading}
             />
             <button
@@ -314,15 +292,12 @@ Otherwise respond with the full meal plan and ingredients as above.
             </button>
           </form>
           {wrkError && <p className="text-red-600">{wrkError}</p>}
-
           {workout && (
-            <div className="space-y-6">
-              {['warmUp','mainSet','coolDown'].map(section => (
+            <div className="space-y-4">
+              {['warmUp','mainSet','coolDown'].map(section=>(
                 <div key={section}>
-                  <h3 className="text-xl font-semibold mb-1">
-                    {section==='warmUp'?'Warm-Up'
-                      :section==='mainSet'?'Main Set'
-                      :'Cool-Down'}
+                  <h3 className="text-xl font-semibold">
+                    {section==='warmUp'?'Warm-Up':section==='mainSet'?'Main Set':'Cool-Down'}
                   </h3>
                   <ul className={section==='mainSet'?'space-y-2':'list-disc list-inside'}>
                     {(workout[section]||[]).map((s,i)=>(
@@ -330,10 +305,9 @@ Otherwise respond with the full meal plan and ingredients as above.
                         <span>{s}</span>
                         {section==='mainSet' && (
                           <button
-                            className="text-purple-600 hover:underline"
+                            className="text-purple-500 hover:underline"
                             onClick={()=>importToLog(
-                              { date: format(new Date(),'yyyy-MM-dd'), mainSet:[s] },
-                              s
+                              { date: format(new Date(),'yyyy-MM-dd'), mainSet: [s] }, s
                             )}
                           >
                             Import
@@ -342,29 +316,32 @@ Otherwise respond with the full meal plan and ingredients as above.
                       </li>
                     ))}
                   </ul>
+                  {section==='mainSet' && (
+                    <button
+                      onClick={()=>importToLog(
+                        { date: format(new Date(),'yyyy-MM-dd'), mainSet: workout.mainSet }, null
+                      )}
+                      className="mt-2 text-sm text-purple-500 hover:underline"
+                    >
+                      Import All
+                    </button>
+                  )}
                 </div>
               ))}
-
-              {/* Import All Quick Workout */}
-              <button
-                onClick={importWholeWorkout}
-                className="mt-2 text-sm text-purple-600 hover:underline"
-              >
-                Import All
-              </button>
             </div>
           )}
         </section>
       )}
 
       {/* Schedule Planner */}
-      {view === 'schedule' && (
-        <section className="bg-white p-6 rounded-2xl shadow space-y-4">
+      {view==='schedule' && (
+        <section className="bg-n-7 text-n-2 p-6 rounded-2xl shadow space-y-4">
           <h2 className="text-2xl font-bold">📅 Schedule Planner</h2>
           <form onSubmit={handleScheduleSubmit} className="flex">
             <input
               type="text"
-              className="flex-1 border rounded-l px-3 py-2"
+              className="flex-1 border border-n-4 bg-n-1 text-n-2 placeholder:text-n-4 rounded-l px-3 py-2
+                         dark:bg-n-7 dark:border-n-6"
               placeholder="e.g. 4-week muscle build"
               value={schedPrompt}
               onChange={e=>setSchedPrompt(e.target.value)}
@@ -375,77 +352,77 @@ Otherwise respond with the full meal plan and ingredients as above.
               className="bg-blue-600 text-white px-4 rounded-r disabled:opacity-50"
               disabled={schLoading}
             >
-              {schLoading?'…':'Generate'}
+              {schLoading ? '…' : 'Generate'}
             </button>
           </form>
           {schError && <p className="text-red-600">{schError}</p>}
-
           {schedule.length>0 && (
-            <div className="space-y-4">
-              {schedule.map((day,i)=>(
-                <div
-                  key={i}
-                  className={`p-4 bg-gray-50 rounded ${day.done?'opacity-50':''}`}
-                >
-                  <div className="flex justify-between items-center mb-2">
-                    <div className="font-medium text-lg">
-                      {format(parseISO(day.date),'dd/MM/yy')}
-                    </div>
-                    <div className="space-x-2">
+            <>
+              <button
+                onClick={viewFullSchedule}
+                className="bg-indigo-600 text-white px-4 py-2 rounded"
+              >
+                View Full Schedule
+              </button>
+              <div className="space-y-4">
+                {schedule.map((day,i)=>(
+                  <div key={i}
+                    className={`p-4 rounded ${
+                      day.done
+                        ? 'bg-n-6 opacity-50'
+                        : 'bg-n-8'
+                    }`}
+                  >
+                    <div className="flex justify-between items-center mb-2">
+                      <div className="font-medium text-lg">{format(parseISO(day.date),'dd/MM/yy')}</div>
                       <button
-                        onClick={()=>toggleComplete(i)}
-                        className="text-green-600 hover:underline"
+                        onClick={()=>completeDay(i)}
+                        className={`font-semibold ${
+                          day.done ? 'text-red-500' : 'text-green-500'
+                        } hover:underline`}
                       >
                         {day.done ? 'Undo' : 'Complete'}
                       </button>
-                      <button
-                        onClick={()=>importToLog(day)}
-                        className="text-purple-600 hover:underline"
-                      >
-                        Import All
-                      </button>
                     </div>
+                    {['warmUp','mainSet','coolDown'].map(sec=>(
+                      <div key={sec} className="mb-3">
+                        <h4 className="font-semibold">
+                          {sec==='warmUp'?'Warm-Up':sec==='mainSet'?'Main Set':'Cool-Down'}
+                        </h4>
+                        <ul className={sec==='mainSet'?'space-y-1':'list-disc list-inside'}>
+                          {(day[sec]||[]).map((item,j)=>(
+                            <li key={j} className={sec==='mainSet'?'flex justify-between':''}>
+                              <span>{item}</span>
+                              {sec==='mainSet' && (
+                                <button
+                                  className="text-purple-500 hover:underline"
+                                  onClick={()=>importToLog(day,item)}
+                                >
+                                  Import
+                                </button>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
                   </div>
-
-                  {['warmUp','mainSet','coolDown'].map(sec=>(
-                    <div key={sec} className="mb-3">
-                      <h4 className="font-semibold">
-                        {sec==='warmUp'?'Warm-Up'
-                          :sec==='mainSet'?'Main Set'
-                          :'Cool-Down'}
-                      </h4>
-                      <ul className={sec==='mainSet'?'space-y-1':'list-disc list-inside'}>
-                        {(day[sec]||[]).map((item,j)=>(
-                          <li key={j} className={sec==='mainSet'?'flex justify-between':''}>
-                            <span>{item}</span>
-                            {sec==='mainSet' && (
-                              <button
-                                className="text-purple-600 hover:underline"
-                                onClick={()=>importToLog(day,item)}
-                              >
-                                Import
-                              </button>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            </>
           )}
         </section>
       )}
 
       {/* Nutrition Suggestions */}
-      {view === 'nutrition' && (
-        <section className="bg-white p-6 rounded-2xl shadow space-y-4">
+      {view==='nutrition' && (
+        <section className="bg-n-7 text-n-2 p-6 rounded-2xl shadow space-y-4">
           <h2 className="text-2xl font-bold">🥗 Nutrition Suggestions</h2>
           <form onSubmit={handleMealSubmit} className="flex">
             <input
               type="text"
-              className="flex-1 border rounded-l px-3 py-2"
+              className="flex-1 border border-n-4 bg-n-1 text-n-2 placeholder:text-n-4 rounded-l px-3 py-2
+                         dark:bg-n-7 dark:border-n-6"
               placeholder="e.g. 3-day meal plan for weight loss & muscle gain"
               value={mealPrompt}
               onChange={e=>setMealPrompt(e.target.value)}
@@ -456,7 +433,7 @@ Otherwise respond with the full meal plan and ingredients as above.
               className="bg-blue-600 text-white px-4 rounded-r disabled:opacity-50"
               disabled={mealLoading}
             >
-              {mealLoading?'…':'Go'}
+              {mealLoading ? '…' : 'Go'}
             </button>
           </form>
           {mealError && <p className="text-red-600">{mealError}</p>}
@@ -466,8 +443,8 @@ Otherwise respond with the full meal plan and ingredients as above.
             <>
               {['breakfast','lunch','dinner'].map(type=>(
                 <div key={type} className="space-y-2">
-                  <h3 className="font-semibold text-lg capitalize">{type}</h3>
-                  <ul className="list-disc list-inside">
+                  <h3 className="font-semibold capitalize">{type}</h3>
+                  <ul className="list-disc list-inside space-y-1">
                     {nutritionPlan[type].map((m,i)=>(
                       <li key={i}>
                         <strong>{m.name}</strong> — Protein {m.protein_g}g, Fat {m.fat_g}g, Carbs {m.carbs_g}g
@@ -479,11 +456,9 @@ Otherwise respond with the full meal plan and ingredients as above.
               ))}
               {nutritionPlan.ingredients && (
                 <div className="mt-4">
-                  <h3 className="font-semibold text-lg">🛒 Ingredients</h3>
-                  <ul className="list-disc list-inside">
-                    {nutritionPlan.ingredients.map((ing,i)=>(
-                      <li key={i}>{ing}</li>
-                    ))}
+                  <h3 className="font-semibold">🛒 Ingredients</h3>
+                  <ul className="list-disc list-inside space-y-1">
+                    {nutritionPlan.ingredients.map((ing,i)=><li key={i}>{ing}</li>)}
                   </ul>
                 </div>
               )}
@@ -492,7 +467,7 @@ Otherwise respond with the full meal plan and ingredients as above.
 
           {/* free-form answer */}
           {mealAnswer && (
-            <div className="prose bg-gray-50 p-4 rounded">
+            <div className="prose bg-n-7 p-4 rounded text-n-2">
               <p>{mealAnswer}</p>
             </div>
           )}

@@ -20,6 +20,7 @@
     "recharts": "^3.1.0"
   },
   "devDependencies": {
+    "@babel/core": "^7.28.0",
     "@vitejs/plugin-react": "^3.0.0",
     "autoprefixer": "^10.4.21",
     "png-to-ico": "^2.1.8",

@@ -1,10 +1,12 @@
+// src/App.jsx
 import React from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './hooks/useAuth'
 
-import Header      from './components/Header'
+import Navbar from './components/Navbar'
+import BottomNav from './components/BottomNav'
+import Card from './components/Card'
 import RequireAuth from './components/RequireAuth'
-import BottomNav   from './components/BottomNav'
 
 import SignIn       from './pages/SignIn'
 import Dashboard    from './pages/Dashboard'
@@ -18,74 +20,78 @@ export default function App() {
   const { user } = useAuth()
 
   return (
-    <div className="pb-16 bg-neutral-light min-h-screen">
-      <Header />
+    <div className="flex flex-col h-screen bg-n-8 text-n-1">
+      {/* Top bar */}
+      <Navbar />
 
-      <Routes>
-        {/* public */}
-        <Route path="/signin" element={<SignIn />} />
+      {/* Main content area */}
+      <div className="flex-1 overflow-auto pt-16 pb-16">
+        <main className="container mx-auto px-4 md:px-6 lg:px-8">
+          <Routes>
+            {/* Public */}
+            <Route path="/signin" element={<SignIn />} />
 
-        {/* protected */}
-        <Route
-          path="/dashboard"
-          element={
-            <RequireAuth>
-              <Dashboard />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/log"
-          element={
-            <RequireAuth>
-              <Log />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/history"
-          element={
-            <RequireAuth>
-              <History />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/coach"
-          element={
-            <RequireAuth>
-              <SmartWorkout />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/schedule"
-          element={
-            <RequireAuth>
-              <Schedule />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/profile"
-          element={
-            <RequireAuth>
-              <Profile />
-            </RequireAuth>
-          }
-        />
+            {/* Protected */}
+            <Route
+              path="/dashboard"
+              element={
+                <RequireAuth>
+                  <Card><Dashboard /></Card>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/log"
+              element={
+                <RequireAuth>
+                  <Card><Log /></Card>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/history"
+              element={
+                <RequireAuth>
+                  <Card><History /></Card>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/coach"
+              element={
+                <RequireAuth>
+                  <Card><SmartWorkout /></Card>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/schedule"
+              element={
+                <RequireAuth>
+                  <Card><Schedule /></Card>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <RequireAuth>
+                  <Card><Profile /></Card>
+                </RequireAuth>
+              }
+            />
 
-        {/* catch-all → redirect based on auth */}
-        <Route
-          path="*"
-          element={
-            <Navigate to={user ? '/dashboard' : '/signin'} replace />
-          }
-        />
-      </Routes>
+            {/* Fallback */}
+            <Route
+              path="*"
+              element={<Navigate to={user ? '/dashboard' : '/signin'} replace />}
+            />
+          </Routes>
+        </main>
+      </div>
 
-      {/* only show bottom nav once signed in */}
-      {user && <BottomNav />}
+      {/* Bottom navigation */}
+      <BottomNav />
     </div>
   )
 }

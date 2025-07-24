@@ -7,8 +7,11 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [initializing, setInitializing] = useState(true)
 
+  // theme: 'light' | 'dark'
+  const [theme, setTheme] = useState('light')
+
+  // 1) load session & hook up auth listener
   useEffect(() => {
-    // 1) on mount, fetch the existing session
     supabase.auth.getSession()
       .then(({ data: { session } }) => {
         setUser(session?.user ?? null)
@@ -17,21 +20,35 @@ export function AuthProvider({ children }) {
         setInitializing(false)
       })
 
-    // 2) subscribe to auth changes
     const { subscription } = supabase.auth.onAuthStateChange((_, session) => {
       setUser(session?.user ?? null)
     })
-
     return () => subscription.unsubscribe()
   }, [])
 
-  const signOut = () => supabase.auth.signOut().then(() => setUser(null))
+  // 2) initialize theme from localStorage or system
+  useEffect(() => {
+    const stored = localStorage.getItem('theme')
+    if (stored === 'dark' || stored === 'light') {
+      setTheme(stored)
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      setTheme('dark')
+    }
+  }, [])
 
-  // while we're waiting for Supabase, don't render anything
+  // 3) whenever theme changes, apply to <html> and persist
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', theme === 'dark')
+    localStorage.setItem('theme', theme)
+  }, [theme])
+
+  const signOut = () => supabase.auth.signOut().then(() => setUser(null))
+  const toggleTheme = () => setTheme(prev => (prev === 'dark' ? 'light' : 'dark'))
+
   if (initializing) return null
 
   return (
-    <AuthContext.Provider value={{ user, signOut }}>
+    <AuthContext.Provider value={{ user, signOut, theme, toggleTheme }}>
       {children}
     </AuthContext.Provider>
   )

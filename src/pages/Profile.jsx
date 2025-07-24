@@ -71,16 +71,16 @@ export default function Profile() {
   }
 
   return (
-    <main className="p-6 bg-neutral-light min-h-screen flex items-center justify-center">
-      <div className="w-full max-w-lg bg-white rounded-2xl shadow-lg p-8 space-y-6">
-        <h1 className="text-3xl font-bold text-center">Your Profile</h1>
+    <main className="p-6 bg-n-8 min-h-screen flex items-center justify-center">
+      <div className="w-full max-w-lg bg-n-7 rounded-2xl shadow-lg p-8 space-y-6">
+        <h1 className="text-3xl font-bold text-center text-n-1">Your Profile</h1>
 
         {loading ? (
-          <p className="text-center text-gray-500">Loading…</p>
+          <p className="text-center text-n-5">Loading…</p>
         ) : editing ? (
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="full_name" className="block mb-1 font-medium">
+              <label htmlFor="full_name" className="block mb-1 font-medium text-n-2">
                 Full Name
               </label>
               <input
@@ -89,13 +89,13 @@ export default function Profile() {
                 type="text"
                 value={formData.full_name}
                 onChange={handleChange}
-                className="w-full border rounded px-3 py-2"
+                className="w-full bg-n-6 border border-n-5 text-n-1 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
                 required
               />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="age" className="block mb-1 font-medium">
+                <label htmlFor="age" className="block mb-1 font-medium text-n-2">
                   Age
                 </label>
                 <input
@@ -104,13 +104,13 @@ export default function Profile() {
                   type="number"
                   value={formData.age}
                   onChange={handleChange}
-                  className="w-full border rounded px-3 py-2"
+                  className="w-full bg-n-6 border border-n-5 text-n-1 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
                   min="0"
                   required
                 />
               </div>
               <div>
-                <label htmlFor="gender" className="block mb-1 font-medium">
+                <label htmlFor="gender" className="block mb-1 font-medium text-n-2">
                   Gender
                 </label>
                 <select
@@ -118,7 +118,7 @@ export default function Profile() {
                   name="gender"
                   value={formData.gender}
                   onChange={handleChange}
-                  className="w-full border rounded px-3 py-2"
+                  className="w-full bg-n-6 border border-n-5 text-n-1 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
                   required
                 >
                   <option value="">Select…</option>
@@ -128,7 +128,7 @@ export default function Profile() {
                 </select>
               </div>
               <div>
-                <label htmlFor="height" className="block mb-1 font-medium">
+                <label htmlFor="height" className="block mb-1 font-medium text-n-2">
                   Height (cm)
                 </label>
                 <input
@@ -137,13 +137,13 @@ export default function Profile() {
                   type="number"
                   value={formData.height}
                   onChange={handleChange}
-                  className="w-full border rounded px-3 py-2"
+                  className="w-full bg-n-6 border border-n-5 text-n-1 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
                   min="0"
                   required
                 />
               </div>
               <div>
-                <label htmlFor="weight" className="block mb-1 font-medium">
+                <label htmlFor="weight" className="block mb-1 font-medium text-n-2">
                   Weight (kg)
                 </label>
                 <input
@@ -152,7 +152,7 @@ export default function Profile() {
                   type="number"
                   value={formData.weight}
                   onChange={handleChange}
-                  className="w-full border rounded px-3 py-2"
+                  className="w-full bg-n-6 border border-n-5 text-n-1 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
                   min="0"
                   required
                 />
@@ -161,8 +161,8 @@ export default function Profile() {
             <button
               type="submit"
               disabled={loading}
-              className={`w-full py-3 text-white rounded ${
-                loading ? 'bg-gray-400' : 'bg-purple-600 hover:bg-purple-700'
+              className={`w-full py-3 text-white rounded-lg ${
+                loading ? 'bg-n-5' : 'bg-purple-600 hover:bg-purple-700'
               }`}
             >
               {loading ? 'Saving…' : 'Save Profile'}
@@ -170,8 +170,8 @@ export default function Profile() {
           </form>
         ) : (
           <div className="text-center space-y-4">
-            <h2 className="text-2xl font-semibold">{formData.full_name}</h2>
-            <div className="grid grid-cols-2 gap-4 text-gray-700">
+            <h2 className="text-2xl font-semibold text-n-1">{formData.full_name}</h2>
+            <div className="grid grid-cols-2 gap-4 text-n-3">
               <div><strong>Age:</strong> {formData.age}</div>
               <div><strong>Gender:</strong> {formData.gender}</div>
               <div><strong>Height:</strong> {formData.height} cm</div>
@@ -180,13 +180,13 @@ export default function Profile() {
             <div className="flex justify-center gap-4 mt-6">
               <button
                 onClick={() => setEditing(true)}
-                className="px-6 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
               >
                 Edit
               </button>
               <button
                 onClick={handleLogout}
-                className="px-6 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                className="px-6 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
               >
                 Log Out
               </button>
